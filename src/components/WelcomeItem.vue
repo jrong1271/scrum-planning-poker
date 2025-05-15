@@ -11,7 +11,11 @@
     </div>
   </div>
 </template>
-
+<script setup lang="ts">
+defineProps<{
+  heading: string
+}>()
+</script>
 <style scoped>
 .item {
   margin-top: 2rem;

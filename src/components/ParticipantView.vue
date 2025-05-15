@@ -1,50 +1,11 @@
-<template>
-  <div class="participant-view">
-    <div class="task-display">
-      <div class="task-view">
-        <h2>{{ currentTask.title || 'No task selected' }}</h2>
-        <p>{{ currentTask.description || 'No description available' }}</p>
-      </div>
-    </div>
-
-    <div class="cards-container">
-      <div
-        v-for="card in planningCards"
-        :key="card.value"
-        class="card"
-        :class="{ selected: selectedCard === card.value }"
-        @click="selectCard(card.value)"
-      >
-        {{ card.value }}
-      </div>
-    </div>
-
-    <div v-if="revealed" class="results">
-      <h3>Results</h3>
-      <div class="results-grid">
-        <div v-for="(score, userId) in scores" :key="userId" class="result-item">
-          <span>{{ users[userId]?.name || 'User' }}:</span>
-          <span>{{ score }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { defineComponent } from 'vue'
-import { Socket } from 'socket.io-client'
-
+import type { RoomData } from '../stores/room'
+import { ref } from 'vue'
 interface Props {
-  socket: Socket
-  roomId: string
-  currentTask: { title: string; description: string }
-  users: Record<string, { name: string; userType: string }>
-  scores: Record<string, number | string>
-  revealed: boolean
-  selectedCard: number | string | null
+  room: RoomData | null
+  handleSelectCard: (card: number) => void
 }
-
+const selectedCard = ref<number | string | null>(null)
 const props = defineProps<Props>()
 
 const planningCards = [
@@ -59,18 +20,24 @@ const planningCards = [
   { value: 34 },
   { value: 55 },
   { value: 89 },
-  { value: '?' },
 ]
-
-const selectCard = (value: number | string) => {
-  if (props.revealed || !props.socket) return
-  props.socket.emit('select-card', { roomId: props.roomId, value })
-}
-
-defineComponent({
-  name: 'ParticipantView',
-})
 </script>
+
+<template>
+  <div class="participant-view">
+    <div class="cards-container">
+      <div
+        v-for="card in planningCards"
+        :key="card.value"
+        class="card"
+        :class="{ selected: selectedCard === card.value }"
+        @click="handleSelectCard(card.value)"
+      >
+        {{ card.value }}
+      </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .participant-view {

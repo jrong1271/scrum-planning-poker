@@ -14,8 +14,11 @@
     "cy:open": "cypress open"
   },
   "dependencies": {
+    "@socket.io/admin-ui": "^0.5.1",
+    "@types/lodash-es": "^4.17.12",
     "@types/uuid": "^10.0.0",
     "@vueuse/core": "^13.2.0",
+    "lodash-es": "^4.17.21",
     "pinia": "^3.0.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",

@@ -3,64 +3,39 @@
     <h1>Planning Poker</h1>
     <div class="actions">
       <div class="create-room">
-        <button @click="createRoom" :disabled="isSubmitting">Create New Room</button>
+        <input v-model="userName" type="text" placeholder="Your name" />
+        <button @click="enterRoom('new')" :disabled="userName.length === 0">Create New Room</button>
       </div>
       <div class="join-room">
-        <input v-model="roomId" type="text" placeholder="Enter Room ID" :disabled="isSubmitting" />
-        <button @click="joinRoom" :disabled="isSubmitting">Join Room</button>
-      </div>
-    </div>
-
-    <!-- Name Modal -->
-    <div v-if="showNameModal" class="modal">
-      <div class="modal-content">
-        <h2>Enter Your Name</h2>
-        <input v-model="userName" type="text" placeholder="Your name" @keyup.enter="submitName" />
-        <button @click="submitName">Continue</button>
+        <input v-model="inputRoomId" type="text" placeholder="Room ID" />
+        <button @click="enterRoom('old')" :disabled="roomId.length === 0">Join Room</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-
+import { v4 as uuidv4 } from 'uuid'
 const router = useRouter()
-const roomId = ref('')
-const userName = ref('')
-const showNameModal = ref(false)
-const isCreatingRoom = ref(false)
-const isSubmitting = ref(false)
-
-onMounted(() => {
-  // Load saved name from localStorage
-  const savedName = localStorage.getItem('userName')
-  if (savedName) {
-    userName.value = savedName
-  }
-})
-
-const createRoom = () => {
-  isCreatingRoom.value = true
-  showNameModal.value = true
-}
-
-const joinRoom = () => {
-  isCreatingRoom.value = false
-  showNameModal.value = true
-}
-
-const submitName = () => {
-  if (!userName.value.trim()) return
-  showNameModal.value = false
-  localStorage.setItem('userName', userName.value)
-
-  if (isCreatingRoom.value) {
-    router.push('/room/new')
+const roomId = ref(localStorage.getItem('roomId') || uuidv4())
+const inputRoomId = ref('')
+const userName = ref(localStorage.getItem('userName') || '')
+const enterRoom = (type: 'new' | 'old') => {
+  if (type === 'new') {
+    roomId.value = uuidv4()
   } else {
-    router.push(`/room/${roomId.value}`)
+    roomId.value = inputRoomId.value
   }
+
+  router.push({
+    path: `/room/${roomId.value}`,
+    query: {
+      action: type,
+      userName: userName.value,
+    },
+  })
 }
 </script>
 

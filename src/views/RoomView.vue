@@ -1,66 +1,112 @@
+<script setup lang="ts">
+import HostView from '../components/HostView.vue'
+import ParticipantView from '../components/ParticipantView.vue'
+import UserList from '../components/UserList.vue'
+
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { io } from 'socket.io-client'
+
+import { useRoomStore } from '../stores/room'
+import type { Room } from '../stores/room'
+
+import { v4 as uuidv4 } from 'uuid'
+const store = useRoomStore()
+const isHost = computed(() => store.currentUser.userType === 'host')
+const route = useRoute()
+const router = useRouter()
+
+const userId = ref(localStorage.getItem('userId') || uuidv4())
+const userName = ref(localStorage.getItem('userName') || '')
+
+const initializeSocket = () => {
+  const socket = io('http://localhost:3000', {
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    auth: {
+      userId: userId.value,
+      userName: userName.value,
+    },
+  })
+
+  store.setSocket(socket)
+
+  socket.on('connect', () => {
+    store.setConnectionStatus('connected')
+    console.log('Connected to server')
+    const roomId = route.params.id as string
+    const action = route.query.action as string
+    if (roomId) {
+      console.log('Joining room:', roomId)
+      if (action === 'new') {
+        console.log('Creating new room')
+        socket.emit('create-room', {
+          userName: userName.value,
+          userId: userId.value,
+        })
+      } else {
+        console.log('Joining existing room')
+        socket.emit('join-room', { roomId, userName, userId })
+      }
+    }
+  })
+
+  socket.on('room-created', (roomId: string) => {
+    console.log('Room created:', roomId)
+    localStorage.setItem('roomId', roomId)
+  })
+
+  socket.on('error', ({ message }: { message: string }) => {
+    console.error('Socket error:', message)
+    store.setConnectionStatus('error')
+  })
+
+  socket.on('room-data', (room: Room) => {
+    store.setRoomData(room)
+    const user = room.participants[userId.value]
+    if (user) {
+      store.setCurrentUser(user)
+    }
+    console.log('Room data updated:', store.room)
+  })
+}
+
+onMounted(() => {
+  initializeSocket()
+  if (!localStorage.getItem('userId')) {
+    localStorage.setItem('userId', userId.value)
+  }
+})
+
+onUnmounted(() => {
+  if (store.socket) {
+    store.socket.disconnect()
+  }
+})
+
+const leaveRoom = () => {
+  store.leaveRoom()
+  router.push('/')
+}
+
+const selectCard = (card: number) => {
+  console.log('Selected card:', card)
+}
+</script>
+
 <template>
   <div class="room-container">
-    <div v-if="connectionStatus === 'error'" class="error-message">
+    <div v-if="store.connectionStatus === 'error'" class="error-message">
       Connection error. Please check if the server is running.
     </div>
-    <div v-else-if="connectionStatus === 'disconnected'" class="error-message">
+    <div v-else-if="store.connectionStatus === 'disconnected'" class="error-message">
       Disconnected from server. Trying to reconnect...
-    </div>
-    <div v-if="showNameModal" class="modal-backdrop">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Enter your name</h2>
-          <button class="close-btn" @click="closeModal">×</button>
-        </div>
-        <input v-model="userName" placeholder="Your name" @keyup.enter="submitName" />
-        <button @click="submitName" :disabled="!userName.trim()">Join Room</button>
-      </div>
     </div>
 
     <div v-else class="room-layout">
       <div class="left-panel">
-        <div class="host-section" v-if="hostId">
-          <h3>Host</h3>
-          <div class="user-card">
-            <div class="card-header">{{ currentUserName }}</div>
-            <div class="card-body">
-              <span v-if="revealed">
-                <span class="card-value">{{
-                  scores[hostId] !== undefined ? scores[hostId] : '-'
-                }}</span>
-              </span>
-              <span v-else>
-                <span v-if="scores[hostId] !== undefined" class="voted">✔️</span>
-                <span v-else class="waiting">⏳</span>
-              </span>
-            </div>
-            <div class="card-footer">
-              <span class="host-badge">Host</span>
-              <span v-if="hostId === socketId" class="me-badge">You</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="participants-section">
-          <h3>Participants</h3>
-          <div class="user-cards">
-            <div v-for="(user, id) in participants" :key="id" class="user-card">
-              <div class="card-header">{{ user.name }}</div>
-              <div class="card-body">
-                <span v-if="revealed">
-                  <span class="card-value">{{ scores[id] !== undefined ? scores[id] : '-' }}</span>
-                </span>
-                <span v-else>
-                  <span v-if="scores[id] !== undefined" class="voted">✔️</span>
-                  <span v-else class="waiting">⏳</span>
-                </span>
-              </div>
-              <div class="card-footer">
-                <span v-if="id === socketId" class="me-badge">You</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <UserList :participants="store.participants" />
       </div>
 
       <div class="right-panel">
@@ -70,221 +116,16 @@
             >!</span
           >
           <span v-if="isHost" class="role">(Host)</span>
-          <span v-else-if="!isHost" class="role">(Participant)</span>
+          <span v-else class="role">(Participant)</span>
           <button @click="leaveRoom" class="leave-btn">Leave Room</button>
-          <button v-if="isDev" @click="clearCookies" class="dev-btn">Clear Cookies (Dev)</button>
-          <button @click="copyRoomLink" class="share-btn">Share Room Link</button>
         </div>
 
-        <HostView
-          v-if="isHost"
-          :socket="socket"
-          :room-id="roomId"
-          :current-task="currentTask"
-          :users="users"
-          :scores="scores"
-          :revealed="revealed"
-        />
-        <ParticipantView
-          v-else
-          :socket="socket"
-          :room-id="roomId"
-          :current-task="currentTask"
-          :users="users"
-          :scores="scores"
-          :revealed="revealed"
-          :selected-card="selectedCard"
-        />
+        <HostView v-if="isHost" :room="store.room" />
+        <ParticipantView v-else :room="store.room" :handleSelectCard="selectCard" />
       </div>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { io, Socket } from 'socket.io-client'
-import { setSessionCookie, clearSessionCookie } from '../utils/cookies'
-import HostView from '../components/HostView.vue'
-import ParticipantView from '../components/ParticipantView.vue'
-
-interface User {
-  name: string
-  userType: string
-}
-interface RoomData {
-  task: { title: string; description: string }
-  participants: Record<string, User>
-  host: { uuid: string; name: string; userType: string }
-}
-
-const room = ref<RoomData | null>(null)
-const currentUser = ref<User | null>(null)
-const route = useRoute()
-const router = useRouter()
-const roomId = computed(() => route.params.id as string)
-
-// Move socket initialization to a function
-const socket = ref<Socket | null>(null)
-const connectionStatus = ref('disconnected')
-const roomExists = ref(false)
-
-const isHost = computed(() => currentUser.value?.userType === 'host')
-const currentTask = ref({ title: '', description: '' })
-const selectedCard = ref<number | string | null>(null)
-const revealed = ref(false)
-const scores = ref<Record<string, number | string>>({})
-const users = ref<Record<string, User>>({})
-const userName = ref(localStorage.getItem('userName') || '')
-const showNameModal = ref(false)
-const socketId = socket.value?.id
-const currentUserName = ref('')
-
-const initializeSocket = () => {
-  socket.value = io('http://localhost:3000', {
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-  })
-
-  socket.value.on('connect', () => {
-    connectionStatus.value = 'connected'
-    console.log('Connected to server')
-
-    // If this is a new room, create it
-    if (roomId.value === 'new') {
-      socket.value?.emit('create-room', {
-        name: userName.value,
-        userType: 'host',
-      })
-    } else {
-      // Otherwise check if room exists
-      socket.value?.emit('check-room', roomId.value)
-    }
-  })
-
-  socket.value.on('room-created', (newRoomId: string) => {
-    // Update URL with the new room ID
-    router.replace(`/room/${newRoomId}`)
-    // Then join the room
-    socket.value?.emit('join-room', {
-      roomId: newRoomId,
-      name: userName.value,
-      userType: 'host',
-    })
-  })
-
-  socket.value.on('room-check', (exists: boolean) => {
-    roomExists.value = exists
-    if (!exists) {
-      clearSessionCookie()
-      router.push('/')
-    } else {
-      // Join existing room
-      socket.value?.emit('join-room', {
-        roomId: roomId.value,
-        name: userName.value,
-        userType: 'participant',
-      })
-      setSessionCookie({
-        roomId: roomId.value,
-        userName: userName.value,
-        timestamp: Date.now(),
-      })
-    }
-  })
-
-  // Register all event listeners
-  socket.value.on('assign-host', (data: { roomId: string; name: string; userType: string }) => {
-    console.log('Assign host', data)
-    currentUser.value = { name: data.name, userType: data.userType }
-  })
-
-  socket.value.on('connect_error', (error: Error) => {
-    connectionStatus.value = 'error'
-    console.error('Connection error:', error)
-  })
-
-  socket.value.on('disconnect', () => {
-    connectionStatus.value = 'disconnected'
-    console.log('Disconnected from server')
-  })
-
-  socket.value.on(
-    'room-data',
-    (data: {
-      task: { title: string; description: string }
-      participants: Record<string, User>
-      host: { uuid: string; name: string; userType: string }
-    }) => {
-      room.value = data
-    },
-  )
-
-  socket.value.on('room-closed', () => {
-    clearSessionCookie()
-    router.push('/')
-  })
-}
-
-function submitName() {
-  if (!userName.value.trim()) return
-  showNameModal.value = false
-  // Store the name in localStorage
-  // Initialize socket connection after name is submitted
-  initializeSocket()
-}
-
-onMounted(() => {
-  // If user is redirected here after creating a room, HomeView will emit 'create-room' and redirect
-  // So, we need to check if the user is the first one (host) or joining
-  if (!userName.value) {
-    showNameModal.value = true
-  } else {
-    // If we already have a name, initialize socket
-    initializeSocket()
-  }
-})
-
-onUnmounted(() => {
-  if (socket.value) {
-    socket.value.off('room-check')
-    socket.value.off('host-assigned')
-    socket.value.off('room-closed')
-    socket.value.disconnect()
-  }
-})
-
-const leaveRoom = () => {
-  if (!socket.value) return
-  socket.value.emit('leave-room', roomId.value)
-  clearSessionCookie()
-  router.push('/')
-}
-
-const clearCookies = () => {
-  clearSessionCookie()
-  localStorage.removeItem('userName')
-  router.push('/')
-}
-
-const isDev = true // For development purposes
-
-// Add copyRoomLink function
-const copyRoomLink = async () => {
-  const url = window.location.href
-  try {
-    await navigator.clipboard.writeText(url)
-    alert('Room link copied to clipboard!')
-  } catch {
-    alert('Failed to copy link')
-  }
-}
-
-const closeModal = () => {
-  router.push('/')
-}
-</script>
 
 <style scoped>
 .room-container {
@@ -366,42 +207,37 @@ const closeModal = () => {
 }
 
 .task-display {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: #fff;
+  background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.task-view {
-  cursor: pointer;
   padding: 1rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.task-view:hover {
-  background-color: #f5f5f5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
 }
 
 .task-edit {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .task-edit input,
 .task-edit textarea {
-  width: 100%;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid #ccc;
   border-radius: 4px;
-  font-size: 1rem;
 }
 
 .task-edit textarea {
   min-height: 100px;
   resize: vertical;
+}
+
+.task-view {
+  cursor: pointer;
+}
+
+.task-view:hover {
+  background-color: #f5f5f5;
 }
 
 .cards-container {
@@ -534,15 +370,6 @@ button:hover:not(:disabled) {
 
 .dev-btn:hover {
   background-color: #5a6268;
-}
-
-.share-btn {
-  background-color: #007bff;
-  color: white;
-  margin-left: 0.5rem;
-}
-.share-btn:hover {
-  background-color: #0056b3;
 }
 
 .modal-header {

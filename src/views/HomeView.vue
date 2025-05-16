@@ -49,26 +49,35 @@
               density="comfortable"
             />
           </div>
-          <v-btn
-            @click="enterRoom"
-            :disabled="
-              !inputUserName ||
-              isLoading ||
-              (actionType === 'join' && !userStore.roomId && !inputRoomId)
-            "
-            color="primary"
-            block
-          >
-            <v-progress-circular
-              v-if="isLoading"
-              indeterminate
-              color="white"
-              size="20"
-              width="2"
-              class="mr-2"
-            />
-            {{ actionType === 'new' ? 'Create Room' : 'Join Room' }}
-          </v-btn>
+          <div class="button-group">
+            <v-btn
+              @click="showNameInput = false"
+              color="secondary"
+              variant="outlined"
+              prepend-icon="mdi-arrow-left"
+            >
+              Back
+            </v-btn>
+            <v-btn
+              @click="enterRoom"
+              :disabled="
+                !inputUserName ||
+                isLoading ||
+                (actionType === 'join' && !userStore.roomId && !inputRoomId)
+              "
+              color="primary"
+            >
+              <v-progress-circular
+                v-if="isLoading"
+                indeterminate
+                color="white"
+                size="20"
+                width="2"
+                class="mr-2"
+              />
+              {{ actionType === 'new' ? 'Create Room' : 'Join Room' }}
+            </v-btn>
+          </div>
         </div>
       </div>
     </div>
@@ -348,6 +357,18 @@ const enterRoom = async () => {
 .or-divider {
   color: #666;
   margin: 0.5rem 0;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.button-group .v-btn {
+  flex: 1;
+  max-width: 200px;
 }
 
 @media (max-width: 1024px) {

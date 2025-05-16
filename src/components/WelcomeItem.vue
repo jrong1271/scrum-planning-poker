@@ -12,9 +12,11 @@
   </div>
 </template>
 <script setup lang="ts">
-defineProps<{
+interface Props {
   heading: string
-}>()
+}
+
+defineProps<Props>()
 </script>
 <style scoped>
 .item {

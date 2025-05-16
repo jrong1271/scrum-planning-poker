@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import HostView from '../components/HostView.vue'
-import ParticipantView from '../components/ParticipantView.vue'
-import UserList from '../components/UserList.vue'
+import GamePanel from '@/components/GamePanel.vue'
+import UserList from '@/components/UserList.vue'
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -11,15 +10,20 @@ import { useRoomStore } from '../stores/room'
 import type { Room } from '../stores/room'
 
 import { v4 as uuidv4 } from 'uuid'
+
 const store = useRoomStore()
 const isHost = computed(() => store.currentUser.userType === 'host')
 const route = useRoute()
 const router = useRouter()
 
-const userId = ref(localStorage.getItem('userId') || uuidv4())
+const userId = ref(localStorage.getItem('userId') || '')
 const userName = ref(localStorage.getItem('userName') || '')
+const showActionPrompt = ref(false)
+const showNamePrompt = ref(false)
+const inputUserName = ref('')
+const selectedAction = ref<'new' | 'join' | ''>('')
 
-const initializeSocket = () => {
+const initializeSocket = (roomId: string) => {
   const socket = io('http://localhost:3000', {
     reconnection: true,
     reconnectionAttempts: 5,
@@ -35,19 +39,17 @@ const initializeSocket = () => {
   socket.on('connect', () => {
     store.setConnectionStatus('connected')
     console.log('Connected to server')
-    const roomId = route.params.id as string
-    const action = route.query.action as string
     if (roomId) {
       console.log('Joining room:', roomId)
-      if (action === 'new') {
+      if (selectedAction.value === 'new') {
         console.log('Creating new room')
         socket.emit('create-room', {
           userName: userName.value,
           userId: userId.value,
         })
-      } else {
+      } else if (selectedAction.value === 'join') {
         console.log('Joining existing room')
-        socket.emit('join-room', { roomId, userName, userId })
+        socket.emit('join-room', { roomId, userName: userName.value, userId: userId.value })
       }
     }
   })
@@ -68,14 +70,51 @@ const initializeSocket = () => {
     if (user) {
       store.setCurrentUser(user)
     }
-    console.log('Room data updated:', store.room)
   })
 }
 
-onMounted(() => {
-  initializeSocket()
-  if (!localStorage.getItem('userId')) {
+const handleActionSelect = (action: 'new' | 'join') => {
+  selectedAction.value = action
+  showActionPrompt.value = false
+  if (!userName.value) {
+    showNamePrompt.value = true
+  } else {
+    proceedWithConnection()
+  }
+}
+
+const handleNameSubmit = () => {
+  if (inputUserName.value.length > 0) {
+    userName.value = inputUserName.value
+    userId.value = uuidv4()
+    localStorage.setItem('userName', userName.value)
     localStorage.setItem('userId', userId.value)
+    showNamePrompt.value = false
+    proceedWithConnection()
+  }
+}
+
+const proceedWithConnection = () => {
+  const roomId = route.params.id as string
+  if (selectedAction.value === 'new') {
+    router.push({ path: '/room/new', query: { action: 'new' } })
+  } else if (selectedAction.value === 'join' && roomId) {
+    router.push({ path: `/room/${roomId}`, query: { action: 'join' } })
+  }
+  initializeSocket(roomId || 'new')
+}
+
+onMounted(() => {
+  const action = route.query.action as string
+  if (!action) {
+    showActionPrompt.value = true
+  } else {
+    selectedAction.value = action as 'new' | 'join'
+    if (!userName.value) {
+      showNamePrompt.value = true
+    } else {
+      proceedWithConnection()
+    }
   }
 })
 
@@ -87,41 +126,89 @@ onUnmounted(() => {
 
 const leaveRoom = () => {
   store.leaveRoom()
-  router.push('/')
+  router.push('/room')
+}
+
+const copyRoomLink = async () => {
+  const url = window.location.origin + window.location.pathname + '?action=join'
+  try {
+    await navigator.clipboard.writeText(url)
+    console.log('Link copied to clipboard')
+  } catch (err) {
+    console.error('Failed to copy link:', err)
+  }
 }
 
 const selectCard = (card: number) => {
   console.log('Selected card:', card)
+  store.currentUser.score = card
+  if (store.socket) {
+    store.socket.emit('select-card', {
+      userId: store.currentUser.userId,
+      card: card,
+    })
+  }
 }
 </script>
 
 <template>
   <div class="room-container">
-    <div v-if="store.connectionStatus === 'error'" class="error-message">
-      Connection error. Please check if the server is running.
-    </div>
-    <div v-else-if="store.connectionStatus === 'disconnected'" class="error-message">
-      Disconnected from server. Trying to reconnect...
+    <!-- Action Selection Prompt -->
+    <div v-if="showActionPrompt" class="prompt-overlay">
+      <div class="prompt">
+        <h3>Welcome to Planning Poker!</h3>
+        <p>Would you like to:</p>
+        <div class="action-buttons">
+          <button @click="handleActionSelect('new')">Create New Room</button>
+          <button @click="handleActionSelect('join')">Join Existing Room</button>
+        </div>
+      </div>
     </div>
 
-    <div v-else class="room-layout">
-      <div class="left-panel">
-        <UserList :participants="store.participants" />
+    <!-- Name Input Prompt -->
+    <div v-if="showNamePrompt" class="prompt-overlay">
+      <div class="prompt">
+        <h3>Enter Your Name</h3>
+        <div class="input-group">
+          <input
+            v-model="inputUserName"
+            type="text"
+            placeholder="Your name"
+            @keyup.enter="handleNameSubmit"
+          />
+          <button @click="handleNameSubmit" :disabled="!inputUserName">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Room View -->
+    <div v-if="!showActionPrompt && !showNamePrompt">
+      <div v-if="store.connectionStatus === 'error'" class="error-message">
+        Connection error. Please check if the server is running.
+      </div>
+      <div v-else-if="store.connectionStatus === 'disconnected'" class="error-message">
+        Disconnected from server. Trying to reconnect...
       </div>
 
-      <div class="right-panel">
-        <div class="user-info">
-          <span
-            >Welcome, <strong>{{ userName }}</strong
-            >!</span
-          >
-          <span v-if="isHost" class="role">(Host)</span>
-          <span v-else class="role">(Participant)</span>
-          <button @click="leaveRoom" class="leave-btn">Leave Room</button>
+      <div v-else class="room-layout">
+        <div class="left-panel">
+          <UserList :participants="store.participants" />
         </div>
 
-        <HostView v-if="isHost" :room="store.room" />
-        <ParticipantView v-else :room="store.room" :handleSelectCard="selectCard" />
+        <div class="right-panel">
+          <div class="user-info">
+            <span
+              >Welcome, <strong>{{ userName }}</strong
+              >!</span
+            >
+            <span v-if="isHost" class="role">(Host)</span>
+            <span v-else class="role">(Participant)</span>
+            <button @click="copyRoomLink" class="share-btn">Share Room</button>
+            <button @click="leaveRoom" class="leave-btn">Leave Room</button>
+          </div>
+
+          <GamePanel :room="store.room" :handleSelectCard="selectCard" />
+        </div>
       </div>
     </div>
   </div>
@@ -132,6 +219,69 @@ const selectCard = (card: number) => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.prompt {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+input {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #42b883;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #3aa876;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
 .room-layout {
@@ -146,49 +296,6 @@ const selectCard = (card: number) => {
   padding: 1rem;
 }
 
-.host-section {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #ddd;
-}
-
-.participants-section {
-  flex: 1;
-}
-
-.user-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.user-card {
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-
-.card-body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.2rem;
-  margin-bottom: 0.5rem;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-}
-
 .right-panel {
   flex: 1;
 }
@@ -200,197 +307,34 @@ const selectCard = (card: number) => {
   align-items: center;
   gap: 1rem;
 }
+
 .role {
-  margin-left: 0.5rem;
   color: #42b883;
   font-weight: bold;
 }
 
-.task-display {
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1rem;
+.share-btn {
+  background: #2196f3;
 }
 
-.task-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.task-edit input,
-.task-edit textarea {
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.task-edit textarea {
-  min-height: 100px;
-  resize: vertical;
-}
-
-.task-view {
-  cursor: pointer;
-}
-
-.task-view:hover {
-  background-color: #f5f5f5;
-}
-
-.cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.card {
-  aspect-ratio: 2/3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1.5rem;
-  font-weight: bold;
-  transition: all 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.card.selected {
-  border-color: #42b883;
-  background: #42b883;
-  color: white;
-}
-
-.results {
-  margin-top: 2rem;
-  padding: 1rem;
-  background: #f5f5f5;
-  border-radius: 8px;
-}
-
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.result-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: white;
-  border-radius: 4px;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  margin: 0.5rem;
-  border: none;
-  border-radius: 4px;
-  background: #42b883;
-  color: white;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  background: #3aa876;
-}
-
-.host-badge {
-  background: #42b883;
-  color: white;
-  border-radius: 4px;
-  padding: 0 0.5rem;
-  margin-left: 0.5rem;
-  font-size: 0.9em;
-}
-.me-badge {
-  background: #2c3e50;
-  color: white;
-  border-radius: 4px;
-  padding: 0 0.5rem;
-  margin-left: 0.5rem;
-  font-size: 0.9em;
-}
-
-.error-message {
-  background-color: #ff4444;
-  color: white;
-  padding: 1rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  text-align: center;
+.share-btn:hover {
+  background: #1976d2;
 }
 
 .leave-btn {
-  margin-left: auto;
-  background-color: #dc3545;
+  background: #dc3545;
 }
 
 .leave-btn:hover {
-  background-color: #c82333;
+  background: #c82333;
 }
 
-.host-participant-list {
-  margin: 2rem 0;
-}
-.participant-score {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background: #f9f9f9;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
-}
-
-.dev-btn {
-  background-color: #6c757d;
-  font-size: 0.8em;
-  padding: 0.3rem 0.6rem;
-}
-
-.dev-btn:hover {
-  background-color: #5a6268;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.error-message {
+  background: #dc3545;
+  color: white;
+  padding: 1rem;
+  border-radius: 4px;
+  text-align: center;
   margin-bottom: 1rem;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: #666;
-  cursor: pointer;
-  padding: 0.5rem;
-  margin: 0;
-}
-
-.close-btn:hover {
-  color: #333;
-  background: none;
 }
 </style>

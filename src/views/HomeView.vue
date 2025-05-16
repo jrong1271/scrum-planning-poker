@@ -6,12 +6,22 @@
         <h2>Welcome to Planning Poker!</h2>
         <p>Would you like to:</p>
         <div class="action-buttons">
-          <button @click="showNamePrompt('new')">Create New Room</button>
-          <button @click="showNamePrompt('join')">Join Existing Room</button>
+          <button
+            :class="{ 'button-pressed': actionType === 'new' }"
+            @click="showNamePrompt('new')"
+          >
+            Create New Room
+          </button>
+          <button
+            :class="{ 'button-pressed': actionType === 'join' }"
+            @click="showNamePrompt('join')"
+          >
+            Join Existing Room
+          </button>
         </div>
       </div>
 
-      <div v-if="showNameInput" class="name-prompt">
+      <div v-if="showNameInput && actionType" class="name-prompt">
         <h3>{{ actionType === 'new' ? 'Create New Room' : 'Join Room' }}</h3>
         <div class="input-group">
           <input v-model="userName" type="text" placeholder="Enter your name" />
@@ -41,9 +51,9 @@ const roomId = ref(localStorage.getItem('roomId') || uuidv4())
 const inputRoomId = ref('')
 const userName = ref(localStorage.getItem('userName') || '')
 const showNameInput = ref(false)
-const actionType = ref<'new' | 'join'>('new')
+const actionType = ref('')
 
-const showNamePrompt = (type: 'new' | 'join') => {
+const showNamePrompt = (type: string) => {
   actionType.value = type
   showNameInput.value = true
 }
@@ -117,6 +127,13 @@ button {
   border-radius: 4px;
   cursor: pointer;
   min-width: 150px;
+  transition: all 0.2s ease;
+}
+
+button.button-pressed {
+  background-color: #388e3c;
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 button:disabled {

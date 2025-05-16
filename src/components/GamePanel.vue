@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import type { RoomData } from '../stores/room'
-import { ref } from 'vue'
+import type { Room } from '../stores/room'
+import { ref, computed } from 'vue'
 interface Props {
-  room: RoomData | null
+  room: Room | null
   handleSelectCard: (card: number) => void
 }
 const selectedCard = ref<number | string | null>(null)
 const props = defineProps<Props>()
 
+const selectCard = (card: number) => {
+  selectedCard.value = card
+  props.handleSelectCard(card)
+}
 const planningCards = [
   { value: 0 },
   { value: 1 },
@@ -24,6 +28,9 @@ const planningCards = [
 </script>
 
 <template>
+  <div class="host-view">
+    <h3>Select your card</h3>
+  </div>
   <div class="participant-view">
     <div class="cards-container">
       <div
@@ -31,7 +38,7 @@ const planningCards = [
         :key="card.value"
         class="card"
         :class="{ selected: selectedCard === card.value }"
-        @click="handleSelectCard(card.value)"
+        @click="selectCard(card.value)"
       >
         {{ card.value }}
       </div>
@@ -40,6 +47,46 @@ const planningCards = [
 </template>
 
 <style scoped>
+.host-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.host-participant-list {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.participant-score {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.results {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
 .participant-view {
   display: flex;
   flex-direction: column;

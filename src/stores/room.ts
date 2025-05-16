@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Socket } from 'socket.io-client'
+
+interface Socket {
+  emit: (event: string, data: Record<string, unknown>) => void
+  disconnect: () => void
+}
 
 export interface User {
   userId: string

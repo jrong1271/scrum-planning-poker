@@ -3,10 +3,20 @@
 </script>
 
 <template>
-  <router-view />
+  <v-app>
+    <v-main>
+      <router-view />
+    </v-main>
+  </v-app>
 </template>
 
 <style>
+@import './assets/main.css';
+
+.v-application {
+  background: #f5f5f5 !important;
+}
+
 * {
   margin: 0;
   padding: 0;

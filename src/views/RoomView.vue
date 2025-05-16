@@ -11,15 +11,17 @@ import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
 import type { Room } from '../stores/room'
 
+const route = useRoute()
+const router = useRouter()
 const store = useRoomStore()
 const userStore = useUserStore()
 const isHost = computed(() => store.currentUser.userType === 'host')
-const route = useRoute()
-const router = useRouter()
-
 const showNamePrompt = ref(false)
 const inputUserName = ref('')
 const roomId = ref<string | null>(null)
+const userName = ref('')
+const errorMessage = ref('')
+const copySuccess = ref(false)
 
 onMounted(() => {
   // Get roomId from route or store
@@ -66,12 +68,15 @@ const leaveRoom = () => {
 }
 
 const copyRoomLink = async () => {
-  const url = window.location.origin + window.location.pathname + '?action=join'
+  const roomLink = `${window.location.origin}/room/${store.room?.roomId}`
   try {
-    await navigator.clipboard.writeText(url)
-    console.log('Link copied to clipboard')
+    await navigator.clipboard.writeText(roomLink)
+    copySuccess.value = true
+    setTimeout(() => {
+      copySuccess.value = false
+    }, 2000)
   } catch (err) {
-    console.error('Failed to copy link:', err)
+    console.error('Failed to copy room link:', err)
   }
 }
 
@@ -170,24 +175,35 @@ const initializeSocket = (roomId: string) => {
     <div v-if="showNamePrompt" class="name-prompt">
       <h3>Enter Your Name</h3>
       <div class="input-group">
-        <input
+        <v-text-field
           v-model="inputUserName"
-          type="text"
-          placeholder="Enter your name"
+          label="Enter your name"
+          variant="outlined"
+          density="comfortable"
           @keyup.enter="handleNameSubmit(inputUserName)"
         />
-        <button @click="handleNameSubmit(inputUserName)" :disabled="!inputUserName">
+        <v-btn
+          color="primary"
+          @click="handleNameSubmit(inputUserName)"
+          :disabled="!inputUserName"
+          block
+        >
           Join Room
-        </button>
+        </v-btn>
       </div>
     </div>
     <template v-else>
-      <div v-if="store.connectionStatus === 'error'" class="error-message">
+      <v-alert v-if="store.connectionStatus === 'error'" type="error" variant="tonal" class="mb-4">
         Connection error. Please check if the server is running.
-      </div>
-      <div v-else-if="store.connectionStatus === 'disconnected'" class="error-message">
+      </v-alert>
+      <v-alert
+        v-else-if="store.connectionStatus === 'disconnected'"
+        type="warning"
+        variant="tonal"
+        class="mb-4"
+      >
         Disconnected from server. Trying to reconnect...
-      </div>
+      </v-alert>
       <div v-else class="room-layout">
         <div class="left-panel">
           <UserList :participants="store.participants" />
@@ -195,17 +211,31 @@ const initializeSocket = (roomId: string) => {
 
         <div class="right-panel">
           <div class="user-info">
-            <span
-              >Welcome, <strong>{{ userStore.userName }}</strong
-              >!</span
-            >
-            <span v-if="isHost" class="role">(Host)</span>
-            <span v-else class="role">(Participant)</span>
-            <button @click="copyRoomLink" class="share-btn">Share Room</button>
-            <button v-if="isHost" @click="store.restartGame" class="restart-btn">
-              Restart Game
-            </button>
-            <button @click="leaveRoom" class="leave-btn">Leave Room</button>
+            <span>
+              <strong>{{ userStore.userName }}</strong>
+            </span>
+            <v-chip :color="isHost ? 'primary' : 'secondary'" size="small" class="ml-2">
+              {{ isHost ? 'Host' : 'Participant' }}
+            </v-chip>
+
+            <div class="room-actions">
+              <v-btn v-if="isHost" color="warning" @click="store.restartGame" class="ml-2">
+                <v-icon start icon="mdi-refresh" />
+                Restart
+              </v-btn>
+              <v-btn
+                color="primary"
+                @click="copyRoomLink"
+                :title="copySuccess ? 'Copied!' : 'Copy room link'"
+              >
+                <v-icon start icon="mdi-share-variant" />
+                Share
+              </v-btn>
+              <v-btn color="error" @click="leaveRoom" title="Leave room">
+                <v-icon start icon="mdi-exit-to-app" />
+                Leave
+              </v-btn>
+            </div>
           </div>
 
           <GamePanel :room="store.room" :handleSelectCard="selectCard" />
@@ -243,33 +273,6 @@ const initializeSocket = (roomId: string) => {
   gap: 1rem;
 }
 
-.input-group input {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-.input-group button {
-  padding: 0.75rem;
-  background: #42b883;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.input-group button:hover:not(:disabled) {
-  background: #3aa876;
-}
-
-.input-group button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
 .room-layout {
   display: flex;
   gap: 2rem;
@@ -292,62 +295,12 @@ const initializeSocket = (roomId: string) => {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.role {
-  color: #42b883;
-  font-weight: bold;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  background-color: #42b883;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-button:hover:not(:disabled) {
-  background-color: #3aa876;
-}
-
-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.share-btn {
-  background: #2196f3;
-}
-
-.share-btn:hover {
-  background: #1976d2;
-}
-
-.leave-btn {
-  background: #dc3545;
-}
-
-.leave-btn:hover {
-  background: #c82333;
-}
-
-.restart-btn {
-  background: #ffc107;
-}
-
-.restart-btn:hover {
-  background: #e0a800;
-}
-
-.error-message {
-  background: #dc3545;
-  color: white;
-  padding: 1rem;
-  border-radius: 4px;
-  text-align: center;
-  margin-bottom: 1rem;
+.room-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 </style>

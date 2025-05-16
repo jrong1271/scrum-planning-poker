@@ -21,10 +21,10 @@ instrument(io, {
 })
 
 interface User {
-  socketId: string // only for reconnection
-  userId: string // only for retrieve user from rooms map
+  socketId: string
+  userId: string
   userName: string
-  userType: string
+  userType: 'host' | 'participant'
   selectedCard: number | null
 }
 
@@ -37,43 +37,29 @@ const rooms = new Map<string, Room>()
 
 function emitRoomData(roomId: string) {
   const room = rooms.get(roomId)
-  console.log('Emitting room data:', roomId)
   if (room) {
-    console.log(room.participants)
     io.to(roomId).emit('room-data', room)
   }
 }
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id)
-  // Handle reconnection
-  const userId = socket.handshake.auth.userId
-  const userName = socket.handshake.auth.userName
-  const socketId = socket.id
-
-  console.table(socket.handshake.auth)
-  console.log('socketId:', socketId)
+  const { userId } = socket.handshake.auth
 
   socket.on('create-room', ({ userName, userId }: { userName: string; userId: string }) => {
-    console.log('Creating new room for:', userName, userId)
     const roomId = uuidv4()
     socket.join(roomId)
 
-    const participants: Record<string, User> = {}
-    participants[userId] = {
-      socketId: socket.id,
-      userId,
-      userName,
-      userType: 'host',
-      selectedCard: null,
+    const participants: Record<string, User> = {
+      [userId]: {
+        socketId: socket.id,
+        userId,
+        userName,
+        userType: 'host',
+        selectedCard: null,
+      },
     }
-    rooms.set(roomId, {
-      roomId,
-      participants,
-    } as Room)
 
-    console.log('Room created:', roomId)
-    console.log('Emitting room-created event')
+    rooms.set(roomId, { roomId, participants })
     socket.emit('room-created', roomId)
     emitRoomData(roomId)
   })
@@ -81,43 +67,28 @@ io.on('connection', (socket) => {
   socket.on(
     'join-room',
     ({ roomId, userName, userId }: { roomId: string; userName: string; userId: string }) => {
-      console.log('Attempting to join room:', { roomId, userName, userId })
       const room = rooms.get(roomId)
-
-      if (room) {
-        console.log('Room found, joining...')
-        socket.join(roomId)
-        // If user is not in the room, add them as a participant
-        if (!room.participants[userId]) {
-          console.log('Adding new participant:', userId)
-          // Check if this is the only user in the room
-          const isOnlyUser = Object.keys(room.participants).length === 0
-          const userType = isOnlyUser ? 'host' : 'participant'
-          console.log('User type:', userType, 'Is only user:', isOnlyUser)
-
-          room.participants[userId] = {
-            socketId: socket.id,
-            userId,
-            userName,
-            userType,
-            selectedCard: null,
-          }
-        } else {
-          // Update socket ID for existing user
-          const user = room.participants[userId]
-          if (user) {
-            console.log('Updating existing user socket ID:', userId)
-            user.socketId = socket.id
-            // Preserve the user's role (host/participant)
-            user.userName = userName // Update username in case it changed
-          }
-        }
-        emitRoomData(roomId)
-      } else {
-        console.log('Room not found:', roomId)
+      if (!room) {
         socket.emit('error', { message: 'Room not found' })
         socket.disconnect()
+        return
       }
+
+      socket.join(roomId)
+      if (!room.participants[userId]) {
+        const isOnlyUser = Object.keys(room.participants).length === 0
+        room.participants[userId] = {
+          socketId: socket.id,
+          userId,
+          userName,
+          userType: isOnlyUser ? 'host' : 'participant',
+          selectedCard: null,
+        }
+      } else {
+        room.participants[userId].socketId = socket.id
+        room.participants[userId].userName = userName
+      }
+      emitRoomData(roomId)
     },
   )
 
@@ -131,10 +102,8 @@ io.on('connection', (socket) => {
   })
 
   socket.on('restart-game', ({ roomId }: { roomId: string }) => {
-    console.log('Restarting game for room:', roomId)
     const room = rooms.get(roomId)
     if (room) {
-      // Reset all participants' selected cards
       Object.values(room.participants).forEach((participant) => {
         participant.selectedCard = null
       })
@@ -145,26 +114,17 @@ io.on('connection', (socket) => {
   socket.on(
     'select-card',
     ({ roomId, userId, card }: { roomId: string; userId: string; card: number }) => {
-      console.log('Select card:', { roomId, userId, card })
       const room = rooms.get(roomId)
-      if (room) {
-        const user = room.participants[userId]
-        if (user) {
-          user.selectedCard = card
-          // Emit score change event to all users in the room
-          io.to(roomId).emit('score-change', {
-            userId,
-            score: card,
-          })
-          // Update room data for all users
-          emitRoomData(roomId)
-        }
+      if (room?.participants[userId]) {
+        room.participants[userId].selectedCard = card
+        io.to(roomId).emit('score-change', { userId, score: card })
+        emitRoomData(roomId)
       }
     },
   )
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id)
+    // Handle disconnection if needed
   })
 })
 

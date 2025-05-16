@@ -157,6 +157,7 @@ const selectCard = (card: number) => {
           <span v-if="isHost" class="role">(Host)</span>
           <span v-else class="role">(Participant)</span>
           <button @click="copyRoomLink" class="share-btn">Share Room</button>
+          <button v-if="isHost" @click="store.restartGame" class="restart-btn">Restart Game</button>
           <button @click="leaveRoom" class="leave-btn">Leave Room</button>
         </div>
 
@@ -279,6 +280,14 @@ button:disabled {
 
 .leave-btn:hover {
   background: #c82333;
+}
+
+.restart-btn {
+  background: #ffc107;
+}
+
+.restart-btn:hover {
+  background: #e0a800;
 }
 
 .error-message {

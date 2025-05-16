@@ -130,6 +130,18 @@ io.on('connection', (socket) => {
     }
   })
 
+  socket.on('restart-game', ({ roomId }: { roomId: string }) => {
+    console.log('Restarting game for room:', roomId)
+    const room = rooms.get(roomId)
+    if (room) {
+      // Reset all participants' selected cards
+      Object.values(room.participants).forEach((participant) => {
+        participant.selectedCard = null
+      })
+      emitRoomData(roomId)
+    }
+  })
+
   socket.on(
     'select-card',
     ({ roomId, userId, card }: { roomId: string; userId: string; card: number }) => {

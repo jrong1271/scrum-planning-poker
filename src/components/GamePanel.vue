@@ -1,123 +1,70 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import type { Room } from '../stores/room'
-import { ref, computed } from 'vue'
-interface Props {
+
+const props = defineProps<{
   room: Room | null
   handleSelectCard: (card: number) => void
-}
-const selectedCard = ref<number | string | null>(null)
-const props = defineProps<Props>()
+}>()
+
+const selectedCard = ref<number | null>(null)
+
+// Watch for room changes to reset selected card when game is restarted
+watch(
+  () => props.room,
+  (newRoom) => {
+    if (newRoom) {
+      // Reset selected card when room data changes (game restart)
+      selectedCard.value = null
+    }
+  },
+  { deep: true },
+)
 
 const selectCard = (card: number) => {
   selectedCard.value = card
   props.handleSelectCard(card)
 }
-const planningCards = [
-  { value: 0 },
-  { value: 1 },
-  { value: 2 },
-  { value: 3 },
-  { value: 5 },
-  { value: 8 },
-  { value: 13 },
-  { value: 21 },
-  { value: 34 },
-  { value: 55 },
-  { value: 89 },
-]
 </script>
 
 <template>
-  <div class="host-view">
-    <h3>Select your card</h3>
-  </div>
-  <div class="participant-view">
-    <div class="cards-container">
-      <div
-        v-for="card in planningCards"
-        :key="card.value"
+  <div class="game-panel">
+    <div class="cards">
+      <button
+        v-for="card in [1, 2, 3, 5, 8, 13, 21, 34, 55, 89]"
+        :key="card"
         class="card"
-        :class="{ selected: selectedCard === card.value }"
-        @click="selectCard(card.value)"
+        :class="{ selected: selectedCard === card }"
+        @click="selectCard(card)"
       >
-        {{ card.value }}
-      </div>
+        {{ card }}
+      </button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.host-view {
+.game-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.cards {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 1rem;
-}
-
-.host-participant-list {
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.participant-score {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  border-bottom: 1px solid #eee;
-}
-
-.results {
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.5rem;
-}
-
-.result-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: #f5f5f5;
-  border-radius: 4px;
-}
-.participant-view {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.task-display {
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 1rem;
-  padding: 1rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  justify-content: center;
 }
 
 .card {
-  aspect-ratio: 2/3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border: 2px solid #4caf50;
+  width: 60px;
+  height: 90px;
+  border: 2px solid #42b883;
   border-radius: 8px;
+  background: white;
+  color: #42b883;
   font-size: 1.5rem;
   font-weight: bold;
   cursor: pointer;
@@ -125,33 +72,12 @@ const planningCards = [
 }
 
 .card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-5px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .card.selected {
-  background: #4caf50;
+  background: #42b883;
   color: white;
-}
-
-.results {
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.5rem;
-}
-
-.result-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: #f5f5f5;
-  border-radius: 4px;
 }
 </style>

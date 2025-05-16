@@ -67,6 +67,13 @@ export const useRoomStore = defineStore('room', () => {
     })
   }
 
+  function restartGame() {
+    if (!socket.value || !room.value) return
+    socket.value.emit('restart-game', {
+      roomId: room.value.roomId,
+    })
+  }
+
   return {
     room,
     socket,
@@ -81,5 +88,6 @@ export const useRoomStore = defineStore('room', () => {
     setRevealed,
     selectCard,
     leaveRoom,
+    restartGame,
   }
 })

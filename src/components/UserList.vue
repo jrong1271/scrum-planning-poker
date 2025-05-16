@@ -17,6 +17,9 @@ watch(
     Object.entries(newParticipants).forEach(([userId, user]) => {
       if (user.selectedCard !== null && user.selectedCard !== undefined) {
         userScores.value[userId] = user.selectedCard
+      } else {
+        // Clear score when card is null
+        delete userScores.value[userId]
       }
     })
   },
@@ -49,16 +52,12 @@ onUnmounted(() => {
 <template>
   <div class="user-list">
     <h3>Participants</h3>
-    <div class="participants">
-      <div v-for="(user, userId) in participants" :key="userId" class="participant">
-        <div class="user-info">
-          <span class="name">{{ user.userName }}</span>
-          <span v-if="user.userType === 'host'" class="role">(Host)</span>
-        </div>
-        <div v-if="userScores[userId]" class="score">
-          {{ userScores[userId] }}
-        </div>
-        <div v-else class="score waiting">Waiting...</div>
+    <div class="users">
+      <div v-for="(user, userId) in participants" :key="userId" class="user">
+        <span class="user-name">{{ user.userName }}</span>
+        <span class="user-role">{{ user.userType === 'host' ? '(Host)' : '(Participant)' }}</span>
+        <span class="user-score" v-if="userScores[userId]">{{ userScores[userId] }}</span>
+        <span class="user-score pending" v-else>Pending</span>
       </div>
     </div>
   </div>
@@ -77,45 +76,37 @@ h3 {
   color: #2c3e50;
 }
 
-.participants {
+.users {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.participant {
+.user {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem;
   border-radius: 4px;
   background: #f8f9fa;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.name {
+.user-name {
   font-weight: 500;
 }
 
-.role {
-  font-size: 0.8rem;
-  color: #42b883;
+.user-role {
+  color: #6c757d;
+  font-size: 0.9em;
 }
 
-.score {
+.user-score {
+  margin-left: auto;
   font-weight: bold;
   color: #42b883;
-  min-width: 2rem;
-  text-align: center;
 }
 
-.score.waiting {
-  color: #6c757d;
-  font-size: 0.8rem;
+.user-score.pending {
+  color: #ffc107;
 }
 </style>

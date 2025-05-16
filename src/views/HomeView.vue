@@ -20,7 +20,14 @@
             placeholder="Enter your name"
             :disabled="isLoading"
           />
-          <div v-if="actionType === 'join' && !userStore.roomId" class="room-input">
+          <div v-if="actionType === 'join'" class="room-input">
+            <div v-if="previousRoom" class="previous-room">
+              <p>You were previously in a room:</p>
+              <button @click="usePreviousRoom" class="previous-room-btn">
+                Rejoin Room: {{ previousRoom }}
+              </button>
+              <p class="or-divider">- OR -</p>
+            </div>
             <input
               v-model="inputRoomId"
               type="text"
@@ -60,18 +67,25 @@ const inputRoomId = ref('')
 const showNameInput = ref(false)
 const actionType = ref('')
 const isLoading = ref(false)
+const previousRoom = ref<string | null>(null)
 
 onMounted(() => {
-  // Check if we have a roomId from userStore (set by router guard)
-  if (userStore.roomId) {
-    actionType.value = 'join'
-    showNameInput.value = true
+  // Check if we have a previous room
+  const storedRoomId = localStorage.getItem('roomId')
+  if (storedRoomId) {
+    previousRoom.value = storedRoomId
   }
 })
 
 const showNamePrompt = (type: string) => {
   actionType.value = type
   showNameInput.value = true
+}
+
+const usePreviousRoom = () => {
+  if (previousRoom.value) {
+    inputRoomId.value = previousRoom.value
+  }
 }
 
 const enterRoom = async () => {
@@ -95,7 +109,7 @@ const enterRoom = async () => {
           userId,
           userName: inputUserName.value,
         },
-        timeout: 5000, // Add timeout
+        timeout: 5000,
       })
 
       // Create a promise to handle the room creation
@@ -107,7 +121,7 @@ const enterRoom = async () => {
 
         const timeoutId = setTimeout(() => {
           reject(new Error('Room creation timed out'))
-        }, 10000) // 10 second timeout
+        }, 10000)
 
         socket.on('connect', () => {
           console.log('Connected to server, creating room...')
@@ -241,30 +255,31 @@ button:disabled {
   margin-bottom: 1rem;
 }
 
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.previous-room {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
 }
 
-.modal-content {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 300px;
+.previous-room p {
+  margin: 0.5rem 0;
+  color: #666;
 }
 
-.modal-content input {
+.previous-room-btn {
+  background: #2196f3;
   width: 100%;
+}
+
+.previous-room-btn:hover {
+  background: #1976d2;
+}
+
+.or-divider {
+  color: #999;
+  font-size: 0.9em;
+  margin: 0.5rem 0;
 }
 
 .room-input {

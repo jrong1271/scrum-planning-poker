@@ -1,53 +1,115 @@
 <template>
   <div class="home">
     <h1>Planning Poker</h1>
+
     <div class="actions">
       <div v-if="!showNameInput" class="welcome-prompt">
         <h2>Welcome to Planning Poker!</h2>
         <p>Would you like to:</p>
         <div class="action-buttons">
-          <button @click="showNamePrompt('new')">Create New Room</button>
-          <button @click="showNamePrompt('join')">Join Existing Room</button>
+          <v-btn color="primary" @click="showNamePrompt('new')" prepend-icon="mdi-plus">
+            Create New Room
+          </v-btn>
+          <v-btn color="secondary" @click="showNamePrompt('join')" prepend-icon="mdi-login">
+            Join Existing Room
+          </v-btn>
         </div>
       </div>
 
       <div v-if="showNameInput" class="name-prompt">
         <h3>{{ actionType === 'new' ? 'Create New Room' : 'Join Room' }}</h3>
         <div class="input-group">
-          <input
+          <v-text-field
             v-model="inputUserName"
-            type="text"
+            label="Your Name"
             placeholder="Enter your name"
             :disabled="isLoading"
+            variant="outlined"
+            density="comfortable"
           />
           <div v-if="actionType === 'join'" class="room-input">
             <div v-if="previousRoom" class="previous-room">
               <p>You were previously in a room:</p>
-              <button @click="usePreviousRoom" class="previous-room-btn">
+              <v-btn
+                @click="usePreviousRoom"
+                color="info"
+                variant="tonal"
+                class="previous-room-btn"
+              >
                 Rejoin Room: {{ previousRoom }}
-              </button>
+              </v-btn>
               <p class="or-divider">- OR -</p>
             </div>
-            <input
+            <v-text-field
               v-model="inputRoomId"
-              type="text"
+              label="Room ID"
               placeholder="Enter Room ID"
               :disabled="isLoading"
+              variant="outlined"
+              density="comfortable"
             />
           </div>
-          <button
+          <v-btn
             @click="enterRoom"
             :disabled="
               !inputUserName ||
               isLoading ||
               (actionType === 'join' && !userStore.roomId && !inputRoomId)
             "
+            color="primary"
+            block
           >
-            <span v-if="isLoading">Creating Room...</span>
-            <span v-else>{{ actionType === 'new' ? 'Create Room' : 'Join Room' }}</span>
-          </button>
+            <v-progress-circular
+              v-if="isLoading"
+              indeterminate
+              color="white"
+              size="20"
+              width="2"
+              class="mr-2"
+            />
+            {{ actionType === 'new' ? 'Create Room' : 'Join Room' }}
+          </v-btn>
         </div>
       </div>
+    </div>
+
+    <!-- Feature Cards -->
+    <div class="feature-cards">
+      <v-card class="feature-card" elevation="4">
+        <v-card-item class="feature-card-content">
+          <template v-slot:prepend>
+            <v-icon icon="mdi-clock-fast" color="primary" size="x-large" class="feature-icon" />
+          </template>
+          <v-card-title class="feature-title">Real-time Updates</v-card-title>
+          <v-card-text class="feature-text">
+            Instant synchronization of card selections and scores across all participants
+          </v-card-text>
+        </v-card-item>
+      </v-card>
+
+      <v-card class="feature-card" elevation="4">
+        <v-card-item class="feature-card-content">
+          <template v-slot:prepend>
+            <v-icon icon="mdi-account-group" color="primary" size="x-large" class="feature-icon" />
+          </template>
+          <v-card-title class="feature-title">Team Collaboration</v-card-title>
+          <v-card-text class="feature-text">
+            Easy room sharing and participant management for seamless team planning
+          </v-card-text>
+        </v-card-item>
+      </v-card>
+
+      <v-card class="feature-card" elevation="4">
+        <v-card-item class="feature-card-content">
+          <template v-slot:prepend>
+            <v-icon icon="mdi-eye" color="primary" size="x-large" class="feature-icon" />
+          </template>
+          <v-card-title class="feature-title">Score Control</v-card-title>
+          <v-card-text class="feature-text">
+            Host controls for managing score visibility and game rounds
+          </v-card-text>
+        </v-card-item>
+      </v-card>
     </div>
   </div>
 </template>
@@ -178,10 +240,63 @@ const enterRoom = async () => {
 
 <style scoped>
 .home {
-  max-width: 600px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+}
+
+.feature-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 4rem 0 2rem;
+  padding: 0.5rem;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.feature-card {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.feature-icon {
+  margin-bottom: 0.5rem;
+  background: rgba(var(--v-theme-primary), 0.1);
+  padding: 0.75rem;
+  border-radius: 50%;
+}
+
+.feature-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.feature-text {
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .actions {
@@ -213,33 +328,6 @@ const enterRoom = async () => {
   max-width: 400px;
 }
 
-input {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  background-color: #42b883;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  min-width: 150px;
-  transition: all 0.2s ease;
-}
-
-button:hover:not(:disabled) {
-  background-color: #3aa876;
-}
-
-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
 .welcome-prompt h2 {
   color: #2c3e50;
   margin-bottom: 1rem;
@@ -250,43 +338,32 @@ button:disabled {
   margin-bottom: 1.5rem;
 }
 
-.name-prompt h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
 .previous-room {
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-bottom: 1rem;
-}
-
-.previous-room p {
-  margin: 0.5rem 0;
-  color: #666;
-}
-
-.previous-room-btn {
-  background: #2196f3;
-  width: 100%;
-}
-
-.previous-room-btn:hover {
-  background: #1976d2;
 }
 
 .or-divider {
-  color: #999;
-  font-size: 0.9em;
+  color: #666;
   margin: 0.5rem 0;
 }
 
-.room-input {
-  margin-top: 1rem;
+@media (max-width: 1024px) {
+  .feature-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-.room-input input {
-  width: 100%;
+@media (max-width: 768px) {
+  .feature-cards {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
 }
 </style>

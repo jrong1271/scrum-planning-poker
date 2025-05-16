@@ -12,6 +12,7 @@ const store = useRoomStore()
 const userStore = useUserStore()
 const userScores = ref<Record<string, number | string>>({})
 const showScores = ref(false)
+const bouncingUsers = ref<Set<string>>(new Set())
 
 // Watch for changes in participants to sync scores
 watch(
@@ -36,6 +37,13 @@ const toggleScores = () => {
   showScores.value = !showScores.value
 }
 
+const triggerBounce = (userId: string) => {
+  bouncingUsers.value.add(userId)
+  setTimeout(() => {
+    bouncingUsers.value.delete(userId)
+  }, 1000) // Remove bounce class after animation completes
+}
+
 onMounted(() => {
   if (store.socket) {
     store.socket.on(
@@ -47,6 +55,7 @@ onMounted(() => {
         } else {
           userScores.value[userId] = score
         }
+        triggerBounce(userId)
       },
     )
 
@@ -70,7 +79,12 @@ onUnmounted(() => {
   <div class="user-list">
     <h3>Participants</h3>
     <div class="users">
-      <div v-for="(user, userId) in participants" :key="userId" class="user">
+      <div
+        v-for="(user, userId) in participants"
+        :key="userId"
+        class="user"
+        :class="{ bounce: bouncingUsers.has(userId) }"
+      >
         <span class="user-name">{{ user.userName }}</span>
         <span class="user-role">{{ user.userType === 'host' ? '(Host)' : '(Participant)' }}</span>
         <div class="score-container">
@@ -156,6 +170,24 @@ h3 {
   padding: 0.5rem;
   border-radius: 4px;
   background: #f8f9fa;
+  transition: transform 0.2s ease;
+}
+
+.user.bounce {
+  animation: bounce 0.5s cubic-bezier(0.36, 0, 0.66, -0.56);
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 .user-name {

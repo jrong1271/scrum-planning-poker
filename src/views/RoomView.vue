@@ -19,8 +19,6 @@ const isHost = computed(() => store.currentUser.userType === 'host')
 const showNamePrompt = ref(false)
 const inputUserName = ref('')
 const roomId = ref<string | null>(null)
-const userName = ref('')
-const errorMessage = ref('')
 const copySuccess = ref(false)
 
 onMounted(() => {
@@ -219,7 +217,13 @@ const initializeSocket = (roomId: string) => {
             </v-chip>
 
             <div class="room-actions">
-              <v-btn v-if="isHost" color="warning" @click="store.restartGame" class="ml-2">
+              <v-btn
+                v-if="isHost"
+                color="warning"
+                @click="store.restartGame"
+                class="ml-2"
+                size="small"
+              >
                 <v-icon start icon="mdi-refresh" />
                 Restart
               </v-btn>
@@ -227,11 +231,12 @@ const initializeSocket = (roomId: string) => {
                 color="primary"
                 @click="copyRoomLink"
                 :title="copySuccess ? 'Copied!' : 'Copy room link'"
+                size="small"
               >
                 <v-icon start icon="mdi-share-variant" />
                 Share
               </v-btn>
-              <v-btn color="error" @click="leaveRoom" title="Leave room">
+              <v-btn color="error" @click="leaveRoom" title="Leave room" size="small">
                 <v-icon start icon="mdi-exit-to-app" />
                 Leave
               </v-btn>

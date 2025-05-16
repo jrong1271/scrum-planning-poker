@@ -10,7 +10,7 @@
           <v-btn color="primary" @click="showNamePrompt('new')" prepend-icon="mdi-plus">
             Create New Room
           </v-btn>
-          <v-btn color="secondary" @click="showNamePrompt('join')" prepend-icon="mdi-login">
+          <v-btn color="secondary" @click="showNamePrompt('join')" prepend-icon="mdi-door-open">
             Join Existing Room
           </v-btn>
         </div>

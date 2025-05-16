@@ -118,6 +118,8 @@ const initializeSocket = (roomId: string) => {
       userId: userStore.userId,
       userName: userStore.userName,
     },
+    path: '/api/socket.io',
+    transports: ['websocket'],
   })
 
   store.setSocket(socket)

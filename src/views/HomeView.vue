@@ -181,6 +181,8 @@ const enterRoom = async () => {
           userName: inputUserName.value,
         },
         timeout: 5000,
+        path: '/api/socket.io',
+        transports: ['websocket'],
       })
 
       // Create a promise to handle the room creation

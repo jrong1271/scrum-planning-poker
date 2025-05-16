@@ -55,7 +55,7 @@ io.on('connection', (socket) => {
   console.log('socketId:', socketId)
 
   socket.on('create-room', ({ userName, userId }: { userName: string; userId: string }) => {
-    console.log('Creating new room for:', userName)
+    console.log('Creating new room for:', userName, userId)
     const roomId = uuidv4()
     socket.join(roomId)
 
@@ -71,6 +71,10 @@ io.on('connection', (socket) => {
       roomId,
       participants,
     } as Room)
+
+    console.log('Room created:', roomId)
+    console.log('Emitting room-created event')
+    socket.emit('room-created', roomId)
     emitRoomData(roomId)
   })
 

@@ -2,37 +2,27 @@
   <div class="home">
     <h1>Planning Poker</h1>
     <div class="actions">
-      <div v-if="!route.query.roomId" class="welcome-prompt">
+      <div v-if="!showNameInput" class="welcome-prompt">
         <h2>Welcome to Planning Poker!</h2>
         <p>Would you like to:</p>
         <div class="action-buttons">
-          <button
-            :class="{ 'button-pressed': actionType === 'new' }"
-            @click="showNamePrompt('new')"
-          >
-            Create New Room
-          </button>
-          <button
-            :class="{ 'button-pressed': actionType === 'join' }"
-            @click="showNamePrompt('join')"
-          >
-            Join Existing Room
-          </button>
+          <button @click="showNamePrompt('new')">Create New Room</button>
+          <button @click="showNamePrompt('join')">Join Existing Room</button>
         </div>
       </div>
 
-      <div v-if="showNameInput && actionType" class="name-prompt">
+      <div v-if="showNameInput" class="name-prompt">
         <h3>{{ actionType === 'new' ? 'Create New Room' : 'Join Room' }}</h3>
         <div class="input-group">
-          <input v-model="userName" type="text" placeholder="Enter your name" />
-          <div v-if="actionType === 'join'" class="room-input">
-            <input v-model="inputRoomId" type="text" placeholder="Enter Room ID" />
-          </div>
-          <button
-            @click="enterRoom"
-            :disabled="!userName || (actionType === 'join' && !inputRoomId)"
-          >
-            {{ actionType === 'new' ? 'Create Room' : 'Join Room' }}
+          <input
+            v-model="inputUserName"
+            type="text"
+            placeholder="Enter your name"
+            :disabled="isLoading"
+          />
+          <button @click="enterRoom" :disabled="!inputUserName || isLoading">
+            <span v-if="isLoading">Creating Room...</span>
+            <span v-else>{{ actionType === 'new' ? 'Create Room' : 'Join Room' }}</span>
           </button>
         </div>
       </div>
@@ -41,37 +31,113 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { v4 as uuidv4 } from 'uuid'
+import { useUserStore } from '../stores/user'
+import { io, Socket } from 'socket.io-client'
 
 const router = useRouter()
-const route = useRoute()
-const roomId = ref(localStorage.getItem('roomId') || uuidv4())
-const inputRoomId = ref('')
-const userName = ref(localStorage.getItem('userName') || '')
+const userStore = useUserStore()
+
+const inputUserName = ref('')
 const showNameInput = ref(false)
 const actionType = ref('')
+const isLoading = ref(false)
+
+onMounted(() => {
+  // Check if we have a roomId from userStore (set by router guard)
+  if (userStore.roomId) {
+    actionType.value = 'join'
+    showNameInput.value = true
+  }
+})
 
 const showNamePrompt = (type: string) => {
   actionType.value = type
   showNameInput.value = true
 }
 
-const enterRoom = () => {
-  if (actionType.value === 'new') {
-    roomId.value = uuidv4()
-  } else {
-    roomId.value = inputRoomId.value
-  }
+const enterRoom = async () => {
+  if (!inputUserName.value) return
 
-  router.push({
-    path: `/room/${roomId.value}`,
-    query: {
-      action: actionType.value === 'new' ? 'new' : 'old',
-      userName: userName.value,
-    },
+  const userId = uuidv4()
+  userStore.setUserState({
+    userId,
+    userName: inputUserName.value,
+    action: actionType.value as 'new' | 'join',
   })
+
+  if (actionType.value === 'new') {
+    isLoading.value = true
+    let socket: Socket | null = null
+
+    try {
+      // For new rooms, we'll create the room first
+      socket = io('http://localhost:3000', {
+        auth: {
+          userId,
+          userName: inputUserName.value,
+        },
+        timeout: 5000, // Add timeout
+      })
+
+      // Create a promise to handle the room creation
+      const roomCreated = new Promise<string>((resolve, reject) => {
+        if (!socket) {
+          reject(new Error('Socket not initialized'))
+          return
+        }
+
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Room creation timed out'))
+        }, 10000) // 10 second timeout
+
+        socket.on('connect', () => {
+          console.log('Connected to server, creating room...')
+          socket?.emit('create-room', {
+            userName: inputUserName.value,
+            userId,
+          })
+        })
+
+        socket.on('room-created', (roomId: string) => {
+          console.log('Room created with ID:', roomId)
+          clearTimeout(timeoutId)
+          resolve(roomId)
+        })
+
+        socket.on('error', (error: Error) => {
+          console.error('Error creating room:', error)
+          clearTimeout(timeoutId)
+          reject(error)
+        })
+
+        socket.on('connect_error', (error: Error) => {
+          console.error('Connection error:', error)
+          clearTimeout(timeoutId)
+          reject(error)
+        })
+      })
+
+      // Wait for room creation
+      const roomId = await roomCreated
+      userStore.setUserState({ roomId })
+      router.push(`/room/${roomId}`)
+    } catch (error) {
+      console.error('Failed to create room:', error)
+      isLoading.value = false
+      alert('Failed to create room. Please try again.')
+    } finally {
+      if (socket) {
+        socket.disconnect()
+      }
+    }
+  } else {
+    // For joining rooms, use the existing roomId
+    const roomId = userStore.roomId || 'join'
+    router.push(`/room/${roomId}`)
+  }
 }
 </script>
 
@@ -121,7 +187,7 @@ input {
 
 button {
   padding: 0.5rem 1rem;
-  background-color: #4caf50;
+  background-color: #42b883;
   color: white;
   border: none;
   border-radius: 4px;
@@ -130,10 +196,8 @@ button {
   transition: all 0.2s ease;
 }
 
-button.button-pressed {
-  background-color: #388e3c;
-  transform: translateY(2px);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+button:hover:not(:disabled) {
+  background-color: #3aa876;
 }
 
 button:disabled {

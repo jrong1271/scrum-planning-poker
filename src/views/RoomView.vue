@@ -2,26 +2,19 @@
 import GamePanel from '@/components/GamePanel.vue'
 import UserList from '@/components/UserList.vue'
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { io } from 'socket.io-client'
 
 import { useRoomStore } from '../stores/room'
+import { useUserStore } from '../stores/user'
 import type { Room } from '../stores/room'
 
-import { v4 as uuidv4 } from 'uuid'
-
 const store = useRoomStore()
+const userStore = useUserStore()
 const isHost = computed(() => store.currentUser.userType === 'host')
 const route = useRoute()
 const router = useRouter()
-
-const userId = ref(localStorage.getItem('userId') || '')
-const userName = ref(localStorage.getItem('userName') || '')
-const showActionPrompt = ref(false)
-const showNamePrompt = ref(false)
-const inputUserName = ref('')
-const selectedAction = ref<'new' | 'join' | ''>('')
 
 const initializeSocket = (roomId: string) => {
   const socket = io('http://localhost:3000', {
@@ -29,8 +22,8 @@ const initializeSocket = (roomId: string) => {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     auth: {
-      userId: userId.value,
-      userName: userName.value,
+      userId: userStore.userId,
+      userName: userStore.userName,
     },
   })
 
@@ -41,22 +34,28 @@ const initializeSocket = (roomId: string) => {
     console.log('Connected to server')
     if (roomId) {
       console.log('Joining room:', roomId)
-      if (selectedAction.value === 'new') {
+      if (userStore.action === 'new') {
         console.log('Creating new room')
         socket.emit('create-room', {
-          userName: userName.value,
-          userId: userId.value,
+          userName: userStore.userName,
+          userId: userStore.userId,
         })
-      } else if (selectedAction.value === 'join') {
+      } else if (userStore.action === 'join') {
         console.log('Joining existing room')
-        socket.emit('join-room', { roomId, userName: userName.value, userId: userId.value })
+        socket.emit('join-room', {
+          roomId,
+          userName: userStore.userName,
+          userId: userStore.userId,
+        })
       }
     }
   })
 
   socket.on('room-created', (roomId: string) => {
     console.log('Room created:', roomId)
-    localStorage.setItem('roomId', roomId)
+    userStore.setUserState({ roomId })
+    // Update URL with the new roomId
+    router.replace(`/room/${roomId}`)
   })
 
   socket.on('error', ({ message }: { message: string }) => {
@@ -65,56 +64,38 @@ const initializeSocket = (roomId: string) => {
   })
 
   socket.on('room-data', (room: Room) => {
+    console.log('Received room data:', room)
     store.setRoomData(room)
-    const user = room.participants[userId.value]
+    const user = room.participants[userStore.userId]
     if (user) {
       store.setCurrentUser(user)
     }
   })
-}
 
-const handleActionSelect = (action: 'new' | 'join') => {
-  selectedAction.value = action
-  showActionPrompt.value = false
-  if (!userName.value) {
-    showNamePrompt.value = true
-  } else {
-    proceedWithConnection()
-  }
-}
-
-const handleNameSubmit = () => {
-  if (inputUserName.value.length > 0) {
-    userName.value = inputUserName.value
-    userId.value = uuidv4()
-    localStorage.setItem('userName', userName.value)
-    localStorage.setItem('userId', userId.value)
-    showNamePrompt.value = false
-    proceedWithConnection()
-  }
-}
-
-const proceedWithConnection = () => {
-  const roomId = route.params.id as string
-  if (selectedAction.value === 'new') {
-    router.push({ path: '/room/new', query: { action: 'new' } })
-  } else if (selectedAction.value === 'join' && roomId) {
-    router.push({ path: `/room/${roomId}`, query: { action: 'join' } })
-  }
-  initializeSocket(roomId || 'new')
+  socket.on('disconnect', () => {
+    console.log('Disconnected from server')
+    store.setConnectionStatus('disconnected')
+  })
 }
 
 onMounted(() => {
-  const action = route.query.action as string
-  if (!action) {
-    showActionPrompt.value = true
-  } else {
-    selectedAction.value = action as 'new' | 'join'
-    if (!userName.value) {
-      showNamePrompt.value = true
-    } else {
-      proceedWithConnection()
+  // Check if we have required user data
+  if (!userStore.userName || !userStore.action) {
+    // Extract roomId from URL if present
+    const roomId = route.params.id
+    if (roomId && roomId !== 'new' && roomId !== 'join') {
+      userStore.setUserState({ roomId: roomId as string })
     }
+    router.push('/')
+    return
+  }
+
+  // Initialize socket with roomId
+  const roomId = route.params.id
+  if (roomId && roomId !== 'new' && roomId !== 'join') {
+    initializeSocket(roomId as string)
+  } else if (userStore.roomId) {
+    initializeSocket(userStore.roomId)
   }
 })
 
@@ -126,7 +107,8 @@ onUnmounted(() => {
 
 const leaveRoom = () => {
   store.leaveRoom()
-  router.push('/room')
+  userStore.clearUserState()
+  router.push('/')
 }
 
 const copyRoomLink = async () => {
@@ -153,62 +135,31 @@ const selectCard = (card: number) => {
 
 <template>
   <div class="room-container">
-    <!-- Action Selection Prompt -->
-    <div v-if="showActionPrompt" class="prompt-overlay">
-      <div class="prompt">
-        <h3>Welcome to Planning Poker!</h3>
-        <p>Would you like to:</p>
-        <div class="action-buttons">
-          <button @click="handleActionSelect('new')">Create New Room</button>
-          <button @click="handleActionSelect('join')">Join Existing Room</button>
-        </div>
-      </div>
+    <div v-if="store.connectionStatus === 'error'" class="error-message">
+      Connection error. Please check if the server is running.
+    </div>
+    <div v-else-if="store.connectionStatus === 'disconnected'" class="error-message">
+      Disconnected from server. Trying to reconnect...
     </div>
 
-    <!-- Name Input Prompt -->
-    <div v-if="showNamePrompt" class="prompt-overlay">
-      <div class="prompt">
-        <h3>Enter Your Name</h3>
-        <div class="input-group">
-          <input
-            v-model="inputUserName"
-            type="text"
-            placeholder="Your name"
-            @keyup.enter="handleNameSubmit"
-          />
-          <button @click="handleNameSubmit" :disabled="!inputUserName">Continue</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Room View -->
-    <div v-if="!showActionPrompt && !showNamePrompt">
-      <div v-if="store.connectionStatus === 'error'" class="error-message">
-        Connection error. Please check if the server is running.
-      </div>
-      <div v-else-if="store.connectionStatus === 'disconnected'" class="error-message">
-        Disconnected from server. Trying to reconnect...
+    <div v-else class="room-layout">
+      <div class="left-panel">
+        <UserList :participants="store.participants" />
       </div>
 
-      <div v-else class="room-layout">
-        <div class="left-panel">
-          <UserList :participants="store.participants" />
+      <div class="right-panel">
+        <div class="user-info">
+          <span
+            >Welcome, <strong>{{ userStore.userName }}</strong
+            >!</span
+          >
+          <span v-if="isHost" class="role">(Host)</span>
+          <span v-else class="role">(Participant)</span>
+          <button @click="copyRoomLink" class="share-btn">Share Room</button>
+          <button @click="leaveRoom" class="leave-btn">Leave Room</button>
         </div>
 
-        <div class="right-panel">
-          <div class="user-info">
-            <span
-              >Welcome, <strong>{{ userName }}</strong
-              >!</span
-            >
-            <span v-if="isHost" class="role">(Host)</span>
-            <span v-else class="role">(Participant)</span>
-            <button @click="copyRoomLink" class="share-btn">Share Room</button>
-            <button @click="leaveRoom" class="leave-btn">Leave Room</button>
-          </div>
-
-          <GamePanel :room="store.room" :handleSelectCard="selectCard" />
-        </div>
+        <GamePanel :room="store.room" :handleSelectCard="selectCard" />
       </div>
     </div>
   </div>

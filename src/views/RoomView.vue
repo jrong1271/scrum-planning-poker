@@ -123,10 +123,10 @@ const copyRoomLink = async () => {
 
 const selectCard = (card: number) => {
   console.log('Selected card:', card)
-  store.currentUser.score = card
-  if (store.socket) {
+  if (store.socket && store.room) {
     store.socket.emit('select-card', {
-      userId: store.currentUser.userId,
+      roomId: store.room.roomId,
+      userId: userStore.userId,
       card: card,
     })
   }

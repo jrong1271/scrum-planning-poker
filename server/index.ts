@@ -126,13 +126,20 @@ io.on('connection', (socket) => {
   socket.on(
     'select-card',
     ({ roomId, userId, card }: { roomId: string; userId: string; card: number }) => {
+      console.log('Select card:', { roomId, userId, card })
       const room = rooms.get(roomId)
       if (room && card) {
         const user = room.participants[userId]
         if (user) {
           user.selectedCard = card
+          // Emit score change event to all users in the room
+          io.to(roomId).emit('score-change', {
+            userId,
+            score: card,
+          })
+          // Update room data for all users
+          emitRoomData(roomId)
         }
-        emitRoomData(roomId)
       }
     },
   )

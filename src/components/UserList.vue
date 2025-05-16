@@ -8,18 +8,19 @@ const props = defineProps<{
 }>()
 
 const store = useRoomStore()
-const userScores = ref<Record<string, number>>({})
+const userScores = ref<Record<string, number | string>>({})
 
 // Watch for changes in participants to sync scores
 watch(
   () => props.participants,
   (newParticipants) => {
+    // Clear all scores first
+    userScores.value = {}
+
+    // Then update with current selections
     Object.entries(newParticipants).forEach(([userId, user]) => {
       if (user.selectedCard !== null && user.selectedCard !== undefined) {
         userScores.value[userId] = user.selectedCard
-      } else {
-        // Clear score when card is null
-        delete userScores.value[userId]
       }
     })
   },
@@ -28,10 +29,17 @@ watch(
 
 onMounted(() => {
   if (store.socket) {
-    store.socket.on('score-change', ({ userId, score }: { userId: string; score: number }) => {
-      console.log('Score change:', userId, score)
-      userScores.value[userId] = score
-    })
+    store.socket.on(
+      'score-change',
+      ({ userId, score }: { userId: string; score: number | null }) => {
+        console.log('Score change:', userId, score)
+        if (score === null) {
+          userScores.value[userId] = 'Pending...'
+        } else {
+          userScores.value[userId] = score
+        }
+      },
+    )
 
     // Initialize scores from current participants
     Object.entries(props.participants).forEach(([userId, user]) => {
@@ -56,7 +64,12 @@ onUnmounted(() => {
       <div v-for="(user, userId) in participants" :key="userId" class="user">
         <span class="user-name">{{ user.userName }}</span>
         <span class="user-role">{{ user.userType === 'host' ? '(Host)' : '(Participant)' }}</span>
-        <span class="user-score" v-if="userScores[userId]">{{ userScores[userId] }}</span>
+        <span
+          class="user-score"
+          v-if="user.selectedCard !== null && user.selectedCard !== undefined"
+        >
+          {{ user.selectedCard }}
+        </span>
         <span class="user-score pending" v-else>Pending</span>
       </div>
     </div>
@@ -108,5 +121,6 @@ h3 {
 
 .user-score.pending {
   color: #ffc107;
+  font-style: italic;
 }
 </style>

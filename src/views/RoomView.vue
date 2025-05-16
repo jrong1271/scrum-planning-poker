@@ -75,7 +75,7 @@ const copyRoomLink = async () => {
   }
 }
 
-const selectCard = (card: number) => {
+const selectCard = (card: number | null) => {
   console.log('Selected card:', card)
   if (store.socket && store.room) {
     store.socket.emit('select-card', {

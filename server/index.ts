@@ -147,7 +147,7 @@ io.on('connection', (socket) => {
     ({ roomId, userId, card }: { roomId: string; userId: string; card: number }) => {
       console.log('Select card:', { roomId, userId, card })
       const room = rooms.get(roomId)
-      if (room && card) {
+      if (room) {
         const user = room.participants[userId]
         if (user) {
           user.selectedCard = card

@@ -20,7 +20,22 @@
             placeholder="Enter your name"
             :disabled="isLoading"
           />
-          <button @click="enterRoom" :disabled="!inputUserName || isLoading">
+          <div v-if="actionType === 'join' && !userStore.roomId" class="room-input">
+            <input
+              v-model="inputRoomId"
+              type="text"
+              placeholder="Enter Room ID"
+              :disabled="isLoading"
+            />
+          </div>
+          <button
+            @click="enterRoom"
+            :disabled="
+              !inputUserName ||
+              isLoading ||
+              (actionType === 'join' && !userStore.roomId && !inputRoomId)
+            "
+          >
             <span v-if="isLoading">Creating Room...</span>
             <span v-else>{{ actionType === 'new' ? 'Create Room' : 'Join Room' }}</span>
           </button>
@@ -41,6 +56,7 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const inputUserName = ref('')
+const inputRoomId = ref('')
 const showNameInput = ref(false)
 const actionType = ref('')
 const isLoading = ref(false)
@@ -134,8 +150,13 @@ const enterRoom = async () => {
       }
     }
   } else {
-    // For joining rooms, use the existing roomId
-    const roomId = userStore.roomId || 'join'
+    // For joining rooms, use the existing roomId or input roomId
+    const roomId = userStore.roomId || inputRoomId.value
+    if (!roomId) {
+      alert('Please enter a Room ID')
+      return
+    }
+    userStore.setUserState({ roomId })
     router.push(`/room/${roomId}`)
   }
 }
@@ -243,6 +264,14 @@ button:disabled {
 }
 
 .modal-content input {
+  width: 100%;
+}
+
+.room-input {
+  margin-top: 1rem;
+}
+
+.room-input input {
   width: 100%;
 }
 </style>

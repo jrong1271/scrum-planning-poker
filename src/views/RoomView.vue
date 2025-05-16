@@ -80,11 +80,14 @@ const initializeSocket = (roomId: string) => {
 
 onMounted(() => {
   // Check if we have required user data
-  if (!userStore.userName || !userStore.action) {
+  if (!userStore.userName) {
     // Extract roomId from URL if present
     const roomId = route.params.id
     if (roomId && roomId !== 'new' && roomId !== 'join') {
-      userStore.setUserState({ roomId: roomId as string })
+      userStore.setUserState({
+        roomId: roomId as string,
+        action: 'join', // Set action to join when refreshing
+      })
     }
     router.push('/')
     return
@@ -93,8 +96,10 @@ onMounted(() => {
   // Initialize socket with roomId
   const roomId = route.params.id
   if (roomId && roomId !== 'new' && roomId !== 'join') {
+    console.log('Initializing socket with route roomId:', roomId)
     initializeSocket(roomId as string)
   } else if (userStore.roomId) {
+    console.log('Initializing socket with store roomId:', userStore.roomId)
     initializeSocket(userStore.roomId)
   }
 })

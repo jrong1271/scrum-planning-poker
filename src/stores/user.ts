@@ -4,15 +4,15 @@ import { ref } from 'vue'
 export interface UserState {
   userId: string
   userName: string
-  action: 'new' | 'join' | ''
   roomId: string
+  action: 'new' | 'join'
 }
 
 export const useUserStore = defineStore('user', () => {
   const userId = ref(localStorage.getItem('userId') || '')
   const userName = ref(localStorage.getItem('userName') || '')
-  const action = ref<'new' | 'join' | ''>('')
-  const roomId = ref('')
+  const roomId = ref(localStorage.getItem('roomId') || '')
+  const action = ref<'new' | 'join'>((localStorage.getItem('action') as 'new' | 'join') || 'join')
 
   function setUserState(state: Partial<UserState>) {
     if (state.userId) {
@@ -23,28 +23,32 @@ export const useUserStore = defineStore('user', () => {
       userName.value = state.userName
       localStorage.setItem('userName', state.userName)
     }
-    if (state.action) {
-      action.value = state.action
-    }
     if (state.roomId) {
       roomId.value = state.roomId
+      localStorage.setItem('roomId', state.roomId)
+    }
+    if (state.action) {
+      action.value = state.action
+      localStorage.setItem('action', state.action)
     }
   }
 
   function clearUserState() {
     userId.value = ''
     userName.value = ''
-    action.value = ''
     roomId.value = ''
+    action.value = 'join'
     localStorage.removeItem('userId')
     localStorage.removeItem('userName')
+    localStorage.removeItem('roomId')
+    localStorage.removeItem('action')
   }
 
   return {
     userId,
     userName,
-    action,
     roomId,
+    action,
     setUserState,
     clearUserState,
   }

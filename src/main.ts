@@ -3,7 +3,19 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createVuetify } from 'vuetify'
-import { VApp, VMain, VTextField, VBtn, VAlert, VIcon } from 'vuetify/components'
+import {
+  VApp,
+  VCard,
+  VCardItem,
+  VCardTitle,
+  VCardText,
+  VMain,
+  VTextField,
+  VBtn,
+  VAlert,
+  VIcon,
+  VProgressCircular,
+} from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
@@ -14,11 +26,16 @@ import router from './router'
 const vuetify = createVuetify({
   components: {
     VApp,
+    VCard,
+    VCardItem,
+    VCardTitle,
+    VCardText,
     VMain,
     VTextField,
     VBtn,
     VAlert,
     VIcon,
+    VProgressCircular,
   },
   directives,
   theme: {

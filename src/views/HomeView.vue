@@ -175,7 +175,7 @@ const enterRoom = async () => {
 
     try {
       // For new rooms, we'll create the room first
-      socket = io('http://localhost:3000', {
+      socket = io('//localhost:3000', {
         auth: {
           userId,
           userName: inputUserName.value,

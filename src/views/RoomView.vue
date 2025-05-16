@@ -110,7 +110,7 @@ const initializeSocket = (roomId: string) => {
   }
 
   // First try to connect to the room
-  const socket = io('http://localhost:3000', {
+  const socket = io('//localhost:3000', {
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,

@@ -34,20 +34,11 @@ const initializeSocket = (roomId: string) => {
     console.log('Connected to server')
     if (roomId) {
       console.log('Joining room:', roomId)
-      if (userStore.action === 'new') {
-        console.log('Creating new room')
-        socket.emit('create-room', {
-          userName: userStore.userName,
-          userId: userStore.userId,
-        })
-      } else if (userStore.action === 'join') {
-        console.log('Joining existing room')
-        socket.emit('join-room', {
-          roomId,
-          userName: userStore.userName,
-          userId: userStore.userId,
-        })
-      }
+      socket.emit('join-room', {
+        roomId,
+        userName: userStore.userName,
+        userId: userStore.userId,
+      })
     }
   })
 
@@ -61,6 +52,11 @@ const initializeSocket = (roomId: string) => {
   socket.on('error', ({ message }: { message: string }) => {
     console.error('Socket error:', message)
     store.setConnectionStatus('error')
+    if (message === 'Room not found') {
+      // Clear user state and redirect to home
+      userStore.clearUserState()
+      router.push('/')
+    }
   })
 
   socket.on('room-data', (room: Room) => {

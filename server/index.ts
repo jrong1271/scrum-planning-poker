@@ -78,41 +78,48 @@ io.on('connection', (socket) => {
     emitRoomData(roomId)
   })
 
-  socket.on('join-room', ({ roomId }: { roomId: string }) => {
-    console.log('Attempting to join room:', roomId)
-    const room = rooms.get(roomId)
-    if (room) {
-      console.log('Room found, joining...')
-      socket.join(roomId)
-      // If user is not in the room, add them as a participant
-      if (!room.participants[userId]) {
-        console.log('Adding new participant:', userId)
-        // Check if this is the only user in the room
-        const isOnlyUser = Object.keys(room.participants).length === 0
-        const userType = isOnlyUser ? 'host' : 'participant'
-        console.log('User type:', userType, 'Is only user:', isOnlyUser)
+  socket.on(
+    'join-room',
+    ({ roomId, userName, userId }: { roomId: string; userName: string; userId: string }) => {
+      console.log('Attempting to join room:', { roomId, userName, userId })
+      const room = rooms.get(roomId)
 
-        room.participants[userId] = {
-          socketId: socket.id,
-          userId,
-          userName,
-          userType,
-          selectedCard: null,
+      if (room) {
+        console.log('Room found, joining...')
+        socket.join(roomId)
+        // If user is not in the room, add them as a participant
+        if (!room.participants[userId]) {
+          console.log('Adding new participant:', userId)
+          // Check if this is the only user in the room
+          const isOnlyUser = Object.keys(room.participants).length === 0
+          const userType = isOnlyUser ? 'host' : 'participant'
+          console.log('User type:', userType, 'Is only user:', isOnlyUser)
+
+          room.participants[userId] = {
+            socketId: socket.id,
+            userId,
+            userName,
+            userType,
+            selectedCard: null,
+          }
+        } else {
+          // Update socket ID for existing user
+          const user = room.participants[userId]
+          if (user) {
+            console.log('Updating existing user socket ID:', userId)
+            user.socketId = socket.id
+            // Preserve the user's role (host/participant)
+            user.userName = userName // Update username in case it changed
+          }
         }
+        emitRoomData(roomId)
       } else {
-        // Update socket ID for existing user
-        const user = room.participants[userId]
-        if (user) {
-          console.log('Updating existing user socket ID:', userId)
-          user.socketId = socket.id
-        }
+        console.log('Room not found:', roomId)
+        socket.emit('error', { message: 'Room not found' })
+        socket.disconnect()
       }
-      emitRoomData(roomId)
-    } else {
-      console.log('Room not found:', roomId)
-      socket.emit('error', { message: 'Room not found' })
-    }
-  })
+    },
+  )
 
   socket.on('leave-room', ({ roomId }: { roomId: string }) => {
     const room = rooms.get(roomId)

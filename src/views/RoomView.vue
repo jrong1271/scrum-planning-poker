@@ -110,7 +110,7 @@ const initializeSocket = (roomId: string) => {
   }
 
   // First try to connect to the room
-  const socket = io('//localhost:3000', {
+  const socket = io(import.meta.env.VITE_SOCKET_URL, {
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,

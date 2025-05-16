@@ -3,19 +3,30 @@
   "version": "1.0.0",
   "description": "Backend server for Scrum Planning Poker",
   "main": "index.ts",
+  "type": "module",
   "scripts": {
-    "start": "ts-node index.ts",
-    "dev": "nodemon --exec ts-node index.ts"
+    "start": "tsx index.ts",
+    "dev": "tsx watch index.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@socket.io/admin-ui": "^0.5.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
     "socket.io": "^4.7.4",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@types/node": "^16",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^16.18.80",
     "@types/uuid": "^9.0.8",
-    "nodemon": "^3.1.10",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "tsx": "^3.12.7",
+    "typescript": "^4.9.5"
+  },
+  "engines": {
+    "node": ">=16.0.0 <17.0.0"
   }
 }

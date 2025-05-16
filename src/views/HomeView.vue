@@ -175,7 +175,7 @@ const enterRoom = async () => {
 
     try {
       // For new rooms, we'll create the room first
-      socket = io('//localhost:3000', {
+      socket = io(import.meta.env.VITE_SOCKET_URL, {
         auth: {
           userId,
           userName: inputUserName.value,

@@ -3,7 +3,7 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createVuetify } from 'vuetify'
-import { VApp, VMain, VTextField, VBtn, VAlert, VChip, VIcon } from 'vuetify/components'
+import { VApp, VMain, VTextField, VBtn, VAlert, VIcon } from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
@@ -18,7 +18,6 @@ const vuetify = createVuetify({
     VTextField,
     VBtn,
     VAlert,
-    VChip,
     VIcon,
   },
   directives,

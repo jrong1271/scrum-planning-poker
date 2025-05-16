@@ -210,23 +210,11 @@ const initializeSocket = (roomId: string) => {
         <div class="right-panel">
           <div class="user-info">
             <span>
+              <v-icon start :icon="isHost ? 'mdi-account-star' : 'mdi-account'" class="mr-1" />
               <strong>{{ userStore.userName }}</strong>
             </span>
-            <v-chip :color="isHost ? 'primary' : 'secondary'" size="small" class="ml-2">
-              {{ isHost ? 'Host' : 'Participant' }}
-            </v-chip>
 
             <div class="room-actions">
-              <v-btn
-                v-if="isHost"
-                color="warning"
-                @click="store.restartGame"
-                class="ml-2"
-                size="small"
-              >
-                <v-icon start icon="mdi-refresh" />
-                Restart
-              </v-btn>
               <v-btn
                 color="primary"
                 @click="copyRoomLink"

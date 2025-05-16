@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const store = useRoomStore()
 const userStore = useUserStore()
-const userScores = ref<Record<string, number | string>>({})
+const userScores = ref<Record<string, number | string | null>>({})
 const showScores = ref(false)
 const bouncingUsers = ref<Set<string>>(new Set())
 
@@ -49,12 +49,7 @@ onMounted(() => {
     store.socket.on(
       'score-change',
       ({ userId, score }: { userId: string; score: number | null }) => {
-        console.log('Score change:', userId, score)
-        if (score === null) {
-          userScores.value[userId] = 'Pending...'
-        } else {
-          userScores.value[userId] = score
-        }
+        userScores.value[userId] = score
         triggerBounce(userId)
       },
     )
@@ -85,26 +80,25 @@ onUnmounted(() => {
         class="user"
         :class="{ bounce: bouncingUsers.has(userId) }"
       >
+        <v-icon
+          start
+          :icon="user.userType === 'host' ? 'mdi-account-star' : 'mdi-account'"
+          size="small"
+          class="mr-1"
+        />
         <span class="user-name">{{ user.userName }}</span>
-        <span class="user-role">{{ user.userType === 'host' ? '(Host)' : '(Participant)' }}</span>
         <div class="score-container">
-          <span
-            class="user-score"
-            v-if="userId === userStore.userId || (showScores && userScores[userId])"
-          >
+          <span class="user-score" v-if="showScores">
             {{ userScores[userId] }}
           </span>
-          <span class="user-score pending" v-else-if="showScores"> Pending </span>
           <span
             class="status-indicator"
             :class="{
-              submitted: userScores[userId] && userScores[userId] !== 'Pending...',
-              pending: !userScores[userId] || userScores[userId] === 'Pending...',
+              submitted: userScores[userId],
+              pending: !userScores[userId],
             }"
             :title="
-              userScores[userId] && userScores[userId] !== 'Pending...'
-                ? 'Score submitted'
-                : 'Waiting for score'
+              typeof userScores[userId] === 'number' ? 'Score submitted' : 'Waiting for score'
             "
           ></span>
         </div>
@@ -112,7 +106,11 @@ onUnmounted(() => {
     </div>
     <div class="footer" v-if="participants[userStore.userId]?.userType === 'host'">
       <button class="toggle-btn" @click="toggleScores">
-        {{ showScores ? "Hide Others' Scores" : "Show Others' Scores" }}
+        {{ showScores ? 'Hide Scores' : 'Show Scores' }}
+      </button>
+      <button class="toggle-btn restart-btn" @click="store.restartGame">
+        <v-icon start icon="mdi-refresh" />
+        Restart
       </button>
     </div>
   </div>
@@ -120,6 +118,7 @@ onUnmounted(() => {
 
 <style scoped>
 .user-list {
+  min-width: 300px;
   background: white;
   border-radius: 8px;
   padding: 1rem;
@@ -145,10 +144,13 @@ h3 {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #eee;
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
 }
 
 .toggle-btn {
-  width: 100%;
+  width: 120px;
   padding: 0.5rem 1rem;
   background: #42b883;
   color: white;
@@ -157,10 +159,22 @@ h3 {
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .toggle-btn:hover {
   background: #3aa876;
+}
+
+.toggle-btn.restart-btn {
+  background: #ffc107;
+}
+
+.toggle-btn.restart-btn:hover {
+  background: #e0a800;
 }
 
 .user {
@@ -194,11 +208,6 @@ h3 {
   font-weight: 500;
 }
 
-.user-role {
-  color: #6c757d;
-  font-size: 0.9em;
-}
-
 .score-container {
   margin-left: auto;
   display: flex;
@@ -209,11 +218,6 @@ h3 {
 .user-score {
   font-weight: bold;
   color: #42b883;
-}
-
-.user-score.pending {
-  color: #ffc107;
-  font-style: italic;
 }
 
 .status-indicator {

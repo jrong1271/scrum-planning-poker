@@ -181,7 +181,7 @@ const enterRoom = async () => {
           userName: inputUserName.value,
         },
         timeout: 5000,
-        path: '/api/socket.io',
+        path: '/socket',
         transports: ['websocket'],
       })
 

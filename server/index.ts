@@ -12,7 +12,7 @@ app.use(helmet())
 app.disable('x-powered-by')
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
-  path: '/api/socket.io',
+  path: '/socket',
   cors: {
     origin: ['https://smeeta.com', 'http://localhost:5173', 'https://admin.socket.io'],
     methods: ['GET', 'POST'],

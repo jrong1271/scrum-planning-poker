@@ -118,7 +118,7 @@ const initializeSocket = (roomId: string) => {
       userId: userStore.userId,
       userName: userStore.userName,
     },
-    path: '/api/socket.io',
+    path: '/socket',
     transports: ['websocket'],
   })
 

@@ -20,7 +20,29 @@ const isHost = computed(
 )
 const showNamePrompt = ref(false)
 const inputUserName = ref('')
-const copySuccess = ref(false)
+const showCopyBubble = ref(false)
+const copyBubbleTimeout = ref<number | null>(null)
+const isShareButtonBouncing = ref(false)
+let bounceInterval: number | null = null
+
+const startBounceAnimation = () => {
+  if (bounceInterval) return
+  isShareButtonBouncing.value = true
+  bounceInterval = window.setInterval(() => {
+    isShareButtonBouncing.value = true
+    setTimeout(() => {
+      isShareButtonBouncing.value = false
+    }, 1000) // Bounce for 1 second
+  }, 5000) // Every 5 seconds
+}
+
+const stopBounceAnimation = () => {
+  if (bounceInterval) {
+    clearInterval(bounceInterval)
+    bounceInterval = null
+  }
+  isShareButtonBouncing.value = false
+}
 
 // Watch for changes in showNamePrompt and focus the input when it becomes true
 watch(showNamePrompt, async (newValue) => {
@@ -29,6 +51,20 @@ watch(showNamePrompt, async (newValue) => {
     nameInputRef.value?.focus()
   }
 })
+
+// Watch for changes in participant count
+watch(
+  () => Object.keys(store.participants).length,
+  (count) => {
+    if (count === 1 && !showNamePrompt.value) {
+      // Start bouncing when there's only one participant and name prompt is not shown
+      startBounceAnimation()
+    } else {
+      // Stop bouncing when more participants join
+      stopBounceAnimation()
+    }
+  },
+)
 
 onMounted(() => {
   const roomId = route.params.id as string
@@ -47,10 +83,18 @@ onMounted(() => {
   } else {
     // since user's information is already set (from home page), we can initialize socket
     initializeSocket()
+    // Check if we should start bouncing after mount
+    if (Object.keys(store.participants).length === 1) {
+      startBounceAnimation()
+    }
   }
 })
 
 onUnmounted(() => {
+  if (copyBubbleTimeout.value) {
+    clearTimeout(copyBubbleTimeout.value)
+  }
+  stopBounceAnimation()
   if (store.socket) {
     store.socket.disconnect()
   }
@@ -66,9 +110,15 @@ const copyRoomLink = async () => {
   const roomLink = `${window.location.origin}/room/${store.room?.roomId}`
   try {
     await navigator.clipboard.writeText(roomLink)
-    copySuccess.value = true
-    setTimeout(() => {
-      copySuccess.value = false
+    // Clear any existing timeout
+    if (copyBubbleTimeout.value) {
+      clearTimeout(copyBubbleTimeout.value)
+    }
+    // Show the bubble
+    showCopyBubble.value = true
+    // Hide the bubble after 2 seconds
+    copyBubbleTimeout.value = window.setTimeout(() => {
+      showCopyBubble.value = false
     }, 2000)
   } catch (err) {
     console.error('Failed to copy room link:', err)
@@ -187,15 +237,22 @@ const initializeSocket = () => {
             </span>
 
             <div class="room-actions">
-              <v-btn
-                color="primary"
-                @click="copyRoomLink"
-                :title="copySuccess ? 'Copied!' : 'Copy room link'"
-                size="small"
-              >
-                <v-icon start icon="mdi-share-variant" />
-                Share
-              </v-btn>
+              <div class="invite-button-container">
+                <div v-if="showCopyBubble" class="copy-bubble">
+                  <v-icon icon="mdi-check" size="small" />
+                  Link has been copied to clipboard!
+                </div>
+                <v-btn
+                  color="primary"
+                  @click="copyRoomLink"
+                  title="Copy room link"
+                  size="small"
+                  :class="{ 'bounce-animation': isShareButtonBouncing }"
+                >
+                  <v-icon start icon="mdi-share-variant" />
+                  Invite
+                </v-btn>
+              </div>
               <v-btn color="error" @click="leaveRoom" title="Leave room" size="small">
                 <v-icon start icon="mdi-exit-to-app" />
                 Leave
@@ -266,5 +323,72 @@ const initializeSocket = () => {
   display: flex;
   gap: 0.5rem;
   margin-left: auto;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bounce-animation {
+  animation: bounce 1s cubic-bezier(0.36, 0, 0.66, -0.56);
+}
+
+.invite-button-container {
+  position: relative;
+}
+
+.copy-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #42b883;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: bubbleFade 2s ease-in-out;
+  box-shadow: 0 2px 8px rgba(66, 184, 131, 0.2);
+}
+
+.copy-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: #42b883 transparent transparent transparent;
+}
+
+@keyframes bubbleFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
 }
 </style>

@@ -71,7 +71,6 @@ const enterRoom = async () => {
           <v-btn @click="joinPreviousRoom" color="info" variant="tonal" class="previous-room-btn">
             Rejoin Room: {{ sessionData.roomId }} as {{ sessionData.userName }}
           </v-btn>
-          <p class="or-divider">- OR -</p>
         </div>
       </div>
 

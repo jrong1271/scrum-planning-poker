@@ -19,7 +19,6 @@ const isHost = computed(
 )
 const showNamePrompt = ref(false)
 const inputUserName = ref('')
-const roomId = ref<string | null>(null)
 const copySuccess = ref(false)
 
 onMounted(() => {

@@ -18,7 +18,7 @@ export type Room = {
 export const useRoomStore = defineStore('room', () => {
   const room = ref<Room | null>(null)
   const socket = ref<Socket | null>(null)
-  const connectionStatus = ref('disconnected')
+  const connectionStatus = ref('')
   const revealed = ref(false)
   const participants = computed(() => {
     if (!room.value) return {}

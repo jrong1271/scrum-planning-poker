@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
 import type { Participant } from '../stores/room'
@@ -25,6 +25,7 @@ watch(
     Object.entries(newParticipants).forEach(([sessionId, user]) => {
       if (user.selectedCard !== null && user.selectedCard !== undefined) {
         userScores.value[sessionId] = user.selectedCard
+        triggerBounce(sessionId)
       }
     })
     // Hide scores when participants change (game restart)
@@ -45,27 +46,12 @@ const triggerBounce = (sessionId: string) => {
 }
 
 onMounted(() => {
-  if (roomStore.socket) {
-    roomStore.socket.on(
-      'score-change',
-      ({ sessionId, score }: { sessionId: string; score: number | null }) => {
-        userScores.value[sessionId] = score
-        triggerBounce(sessionId)
-      },
-    )
-
-    Object.entries(props.participants).forEach(([sessionId, user]) => {
-      if (user.selectedCard !== null && user.selectedCard !== undefined) {
-        userScores.value[sessionId] = user.selectedCard
-      }
-    })
-  }
-})
-
-onUnmounted(() => {
-  if (roomStore.socket) {
-    roomStore.socket.off('score-change')
-  }
+  // Initialize scores from current participants
+  Object.entries(props.participants).forEach(([sessionId, user]) => {
+    if (user.selectedCard !== null && user.selectedCard !== undefined) {
+      userScores.value[sessionId] = user.selectedCard
+    }
+  })
 })
 </script>
 

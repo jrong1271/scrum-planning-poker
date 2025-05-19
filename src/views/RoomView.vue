@@ -2,7 +2,7 @@
 import SelectCards from '@/components/SelectCards.vue'
 import ParticipantList from '@/components/ParticipantList.vue'
 
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { io } from 'socket.io-client'
 
@@ -14,12 +14,21 @@ const route = useRoute()
 const router = useRouter()
 const store = useRoomStore()
 const userStore = useUserStore()
+const nameInputRef = ref<HTMLInputElement | null>(null)
 const isHost = computed(
   () => store.participants[userStore.currentUser.sessionId || '']?.userType === 'host',
 )
 const showNamePrompt = ref(false)
 const inputUserName = ref('')
 const copySuccess = ref(false)
+
+// Watch for changes in showNamePrompt and focus the input when it becomes true
+watch(showNamePrompt, async (newValue) => {
+  if (newValue) {
+    await nextTick()
+    nameInputRef.value?.focus()
+  }
+})
 
 onMounted(() => {
   const roomId = route.params.id as string
@@ -90,6 +99,12 @@ const handleNameSubmit = () => {
   initializeSocket()
 }
 
+const handleScoreChange = ({ sessionId, score }: { sessionId: string; score: number | null }) => {
+  if (store.room) {
+    store.setParticipantScore(sessionId, score)
+  }
+}
+
 const initializeSocket = () => {
   // First try to connect to the room
   const socket = io(import.meta.env.VITE_SOCKET_URL, {
@@ -121,6 +136,8 @@ const initializeSocket = () => {
     store.setRoomData(room)
   })
 
+  socket.on('score-change', handleScoreChange)
+
   socket.on('disconnect', () => {
     store.setConnectionStatus('disconnected')
   })
@@ -138,6 +155,7 @@ const initializeSocket = () => {
           variant="outlined"
           density="comfortable"
           @keyup.enter="handleNameSubmit()"
+          ref="nameInputRef"
         />
         <v-btn color="primary" @click="handleNameSubmit()" :disabled="!inputUserName" block>
           Join Room

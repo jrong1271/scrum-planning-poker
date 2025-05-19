@@ -136,8 +136,10 @@ io.on('connection', (socket) => {
   socket.on('select-card', ({ roomId, sessionId, card }) => {
     try {
       const room = rooms.get(roomId)
+      console.log(roomId, sessionId, card)
       if (room?.participants[sessionId]) {
         room.participants[sessionId].selectedCard = card
+        console.log(room.participants[sessionId])
         io.to(roomId).emit('score-change', { sessionId, score: card })
         //emitRoomData(roomId)
       }

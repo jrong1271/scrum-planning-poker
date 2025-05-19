@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { v4 as uuidv4 } from 'uuid'
 import { useUserStore } from '../stores/user'
@@ -10,6 +10,7 @@ const userStore = useUserStore()
 
 const inputUserName = ref<string | null>(null)
 const inputRoomId = ref<string | null>(null)
+const nameInputRef = ref<HTMLInputElement | null>(null)
 
 const showNameInput = ref(false)
 const actionType = ref<'new' | 'join' | null>(null)
@@ -21,9 +22,13 @@ if (session) {
   sessionData.value = JSON.parse(session)
 }
 
-const showNamePrompt = (type: 'new' | 'join') => {
+const showNamePrompt = async (type: 'new' | 'join') => {
   actionType.value = type
   showNameInput.value = true
+  // Wait for the input to be rendered
+  await nextTick()
+  // Focus the name input
+  nameInputRef.value?.focus()
 }
 
 const joinPreviousRoom = () => {
@@ -84,6 +89,7 @@ const enterRoom = async () => {
             :disabled="isLoading"
             variant="outlined"
             density="comfortable"
+            ref="nameInputRef"
           />
           <div v-if="actionType === 'join'" class="room-input">
             <v-text-field

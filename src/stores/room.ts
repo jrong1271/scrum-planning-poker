@@ -63,6 +63,12 @@ export const useRoomStore = defineStore('room', () => {
     })
   }
 
+  function setParticipantScore(sessionId: string, score: number | null) {
+    if (room.value && room.value.participants[sessionId]) {
+      room.value.participants[sessionId].selectedCard = score
+    }
+  }
+
   return {
     room,
     socket,
@@ -76,5 +82,6 @@ export const useRoomStore = defineStore('room', () => {
     selectCard,
     leaveRoom,
     restartGame,
+    setParticipantScore,
   }
 })

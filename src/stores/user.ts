@@ -1,54 +1,50 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { v4 as uuidv4 } from 'uuid'
 
-export interface UserState {
-  userId: string
-  userName: string
-  roomId: string
-  action: 'new' | 'join'
+export type UserState = {
+  sessionId: string | null
+  userName: string | null
+  roomId: string | null
+  userType: string | null
 }
 
+// use to persist user data
 export const useUserStore = defineStore('user', () => {
-  const userId = ref(localStorage.getItem('userId') || '')
-  const userName = ref(localStorage.getItem('userName') || '')
-  const roomId = ref(localStorage.getItem('roomId') || '')
-  const action = ref<'new' | 'join'>((localStorage.getItem('action') as 'new' | 'join') || 'join')
+  const currentUser = ref<UserState>({
+    sessionId: null,
+    userName: null,
+    roomId: null,
+    userType: null,
+  })
 
   function setUserState(state: Partial<UserState>) {
-    if (state.userId) {
-      userId.value = state.userId
-      localStorage.setItem('userId', state.userId)
+    currentUser.value = {
+      ...currentUser.value,
+      ...state,
     }
-    if (state.userName) {
-      userName.value = state.userName
-      localStorage.setItem('userName', state.userName)
+    if (!currentUser.value.sessionId) {
+      currentUser.value.sessionId = uuidv4()
     }
-    if (state.roomId) {
-      roomId.value = state.roomId
-      localStorage.setItem('roomId', state.roomId)
+
+    if (!currentUser.value.roomId) {
+      currentUser.value.roomId = uuidv4()
     }
-    if (state.action) {
-      action.value = state.action
-      localStorage.setItem('action', state.action)
-    }
+    localStorage.setItem('session', JSON.stringify(currentUser.value))
   }
 
   function clearUserState() {
-    userId.value = ''
-    userName.value = ''
-    roomId.value = ''
-    action.value = 'join'
-    localStorage.removeItem('userId')
-    localStorage.removeItem('userName')
-    localStorage.removeItem('roomId')
-    localStorage.removeItem('action')
+    currentUser.value = {
+      sessionId: null,
+      userName: null,
+      roomId: null,
+      userType: null,
+    }
+    localStorage.removeItem('session')
   }
 
   return {
-    userId,
-    userName,
-    roomId,
-    action,
+    currentUser,
     setUserState,
     clearUserState,
   }

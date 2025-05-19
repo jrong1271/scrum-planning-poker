@@ -31,27 +31,19 @@ watch(
 )
 
 const selectCard = (card: number) => {
-  console.log('Before selection - selectedCard:', selectedCard.value)
   // If the same card is clicked again, deselect it
   if (selectedCard.value === card) {
     selectedCard.value = null
-    console.log('Deselecting card, new selectedCard:', selectedCard.value)
     props.handleSelectCard(null)
   } else {
     selectedCard.value = card
-    console.log('Selecting card, new selectedCard:', selectedCard.value)
     props.handleSelectCard(card)
   }
 }
-
-// Add a watch to monitor selectedCard changes
-watch(selectedCard, (newValue) => {
-  console.log('selectedCard changed to:', newValue)
-})
 </script>
 
 <template>
-  <div class="game-panel">
+  <div class="select-cards-panel">
     <div class="cards">
       <button
         v-for="card in [1, 2, 3, 5, 8, 13, 21, 34, 55, 89]"
@@ -59,7 +51,6 @@ watch(selectedCard, (newValue) => {
         class="card"
         :class="{
           selected: selectedCard === card,
-          'not-selected': selectedCard !== null && selectedCard !== card,
         }"
         @click="selectCard(card)"
       >
@@ -70,7 +61,7 @@ watch(selectedCard, (newValue) => {
 </template>
 
 <style scoped>
-.game-panel {
+.select-cards-panel {
   background: white;
   border-radius: 8px;
   padding: 1rem;
@@ -110,11 +101,6 @@ watch(selectedCard, (newValue) => {
   transform: translateY(8px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-color: #2c3e50;
-}
-
-.card.not-selected {
-  opacity: 0.7;
-  filter: grayscale(0.5);
 }
 
 .card:active {

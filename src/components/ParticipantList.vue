@@ -2,13 +2,13 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
-import type { User } from '../stores/room'
+import type { Participant } from '../stores/room'
 
 const props = defineProps<{
-  participants: Record<string, User>
+  participants: Record<string, Participant>
 }>()
 
-const store = useRoomStore()
+const roomStore = useRoomStore()
 const userStore = useUserStore()
 const userScores = ref<Record<string, number | string | null>>({})
 const showScores = ref(false)
@@ -22,9 +22,9 @@ watch(
     userScores.value = {}
 
     // Then update with current selections
-    Object.entries(newParticipants).forEach(([userId, user]) => {
+    Object.entries(newParticipants).forEach(([sessionId, user]) => {
       if (user.selectedCard !== null && user.selectedCard !== undefined) {
-        userScores.value[userId] = user.selectedCard
+        userScores.value[sessionId] = user.selectedCard
       }
     })
     // Hide scores when participants change (game restart)
@@ -37,48 +37,47 @@ const toggleScores = () => {
   showScores.value = !showScores.value
 }
 
-const triggerBounce = (userId: string) => {
-  bouncingUsers.value.add(userId)
+const triggerBounce = (sessionId: string) => {
+  bouncingUsers.value.add(sessionId)
   setTimeout(() => {
-    bouncingUsers.value.delete(userId)
+    bouncingUsers.value.delete(sessionId)
   }, 1000) // Remove bounce class after animation completes
 }
 
 onMounted(() => {
-  if (store.socket) {
-    store.socket.on(
+  if (roomStore.socket) {
+    roomStore.socket.on(
       'score-change',
-      ({ userId, score }: { userId: string; score: number | null }) => {
-        userScores.value[userId] = score
-        triggerBounce(userId)
+      ({ sessionId, score }: { sessionId: string; score: number | null }) => {
+        userScores.value[sessionId] = score
+        triggerBounce(sessionId)
       },
     )
 
-    // Initialize scores from current participants
-    Object.entries(props.participants).forEach(([userId, user]) => {
+    Object.entries(props.participants).forEach(([sessionId, user]) => {
       if (user.selectedCard !== null && user.selectedCard !== undefined) {
-        userScores.value[userId] = user.selectedCard
+        userScores.value[sessionId] = user.selectedCard
       }
     })
   }
 })
 
 onUnmounted(() => {
-  if (store.socket) {
-    store.socket.off('score-change')
+  if (roomStore.socket) {
+    roomStore.socket.off('score-change')
   }
 })
 </script>
 
 <template>
-  <div class="user-list">
+  <div class="participants-list">
     <h3>Participants</h3>
     <div class="users">
       <div
-        v-for="(user, userId) in participants"
-        :key="userId"
+        v-for="(user, sessionId) in participants"
+        :key="sessionId"
         class="user"
-        :class="{ bounce: bouncingUsers.has(userId) }"
+        :class="{ bounce: bouncingUsers.has(sessionId) }"
       >
         <v-icon
           start
@@ -89,26 +88,32 @@ onUnmounted(() => {
         <span class="user-name">{{ user.userName }}</span>
         <div class="score-container">
           <span class="user-score" v-if="showScores">
-            {{ userScores[userId] }}
+            {{ userScores[sessionId] }}
           </span>
           <span
             class="status-indicator"
             :class="{
-              submitted: userScores[userId],
-              pending: !userScores[userId],
+              submitted: userScores[sessionId],
+              pending: !userScores[sessionId],
             }"
             :title="
-              typeof userScores[userId] === 'number' ? 'Score submitted' : 'Waiting for score'
+              typeof userScores[sessionId] === 'number' ? 'Score submitted' : 'Waiting for score'
             "
           ></span>
         </div>
       </div>
     </div>
-    <div class="footer" v-if="participants[userStore.userId]?.userType === 'host'">
+    <div
+      class="footer"
+      v-if="
+        userStore.currentUser?.sessionId &&
+        participants[userStore.currentUser.sessionId]?.userType === 'host'
+      "
+    >
       <button class="toggle-btn" @click="toggleScores">
         {{ showScores ? 'Hide Scores' : 'Show Scores' }}
       </button>
-      <button class="toggle-btn restart-btn" @click="store.restartGame">
+      <button class="toggle-btn restart-btn" @click="roomStore.restartGame">
         <v-icon start icon="mdi-refresh" />
         Restart
       </button>
@@ -117,7 +122,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.user-list {
+.participants-list {
   min-width: 300px;
   background: white;
   border-radius: 8px;

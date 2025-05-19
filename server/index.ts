@@ -2,7 +2,6 @@ import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { instrument } from '@socket.io/admin-ui'
-import { v4 as uuidv4 } from 'uuid'
 import cors from 'cors'
 import helmet from 'helmet'
 
@@ -23,18 +22,21 @@ instrument(io, {
   auth: false,
   mode: 'development',
 })
-
-interface User {
-  socketId: string
-  userId: string
+type Participant = {
+  sessionId: string
   userName: string
-  userType: 'host' | 'participant'
-  selectedCard: number | null
+  socketId?: string
+  userType?: 'host' | 'participant'
+  selectedCard?: number | null
 }
-
-interface Room {
+type UserState = {
+  sessionId: string
+  userName: string
   roomId: string
-  participants: Record<string, User>
+}
+type Room = {
+  roomId: string
+  participants: Record<string, Participant>
 }
 
 const rooms = new Map<string, Room>()
@@ -53,71 +55,61 @@ function emitRoomData(roomId: string) {
 }
 
 io.on('connection', (socket) => {
-  const { userId } = socket.handshake.auth
-
-  socket.on('create-room', ({ userName, userId }: { userName: string; userId: string }) => {
+  socket.on('join-room', ({ roomId, userName, sessionId }: UserState) => {
     try {
-      if (!userName || !userId) {
-        socket.emit('error', { message: 'Missing required fields' })
-        return
-      }
-      const safeName = sanitizeUserName(userName)
-      const roomId = uuidv4()
       socket.join(roomId)
-      const participants: Record<string, User> = {
-        [userId]: {
-          socketId: socket.id,
-          userId,
-          userName: safeName,
-          userType: 'host',
-          selectedCard: null,
-        },
+
+      const safeName = sanitizeUserName(userName)
+      let room = null
+      if (rooms.has(roomId)) {
+        room = rooms.get(roomId)
+        if (room) {
+          if (room.participants[sessionId]) {
+            // detect re-connecting users
+            emitRoomData(roomId)
+            return
+          } else {
+            // new user joining a room with participants
+            room.participants[sessionId] = {
+              sessionId,
+              userName: safeName,
+              socketId: socket.id,
+              userType: Object.keys(room.participants).length > 0 ? 'participant' : 'host',
+              selectedCard: null,
+            } as Participant
+          }
+        }
+      } else {
+        // create a new room
+        rooms.set(roomId, {
+          roomId,
+          participants: {
+            [sessionId]: {
+              sessionId,
+              userName: safeName,
+              socketId: socket.id,
+              userType: 'host',
+              selectedCard: null,
+            },
+          },
+        })
       }
-      rooms.set(roomId, { roomId, participants })
-      socket.emit('room-created', roomId)
+
       emitRoomData(roomId)
     } catch {
-      socket.emit('error', { message: 'Failed to create room' })
+      socket.emit('error', { message: 'Failed to join room' })
     }
   })
-
-  socket.on(
-    'join-room',
-    ({ roomId, userName, userId }: { roomId: string; userName: string; userId: string }) => {
-      try {
-        const room = rooms.get(roomId)
-        if (!room) {
-          socket.emit('error', { message: 'Room not found' })
-          socket.disconnect()
-          return
-        }
-        const safeName = sanitizeUserName(userName)
-        socket.join(roomId)
-        if (!room.participants[userId]) {
-          const isOnlyUser = Object.keys(room.participants).length === 0
-          room.participants[userId] = {
-            socketId: socket.id,
-            userId,
-            userName: safeName,
-            userType: isOnlyUser ? 'host' : 'participant',
-            selectedCard: null,
-          }
-        } else {
-          room.participants[userId].socketId = socket.id
-          room.participants[userId].userName = safeName
-        }
-        emitRoomData(roomId)
-      } catch {
-        socket.emit('error', { message: 'Failed to join room' })
-      }
-    },
-  )
 
   socket.on('leave-room', ({ roomId }: { roomId: string }) => {
     try {
       const room = rooms.get(roomId)
       if (room) {
-        delete room.participants[userId]
+        Object.values(room.participants).map((participant) => {
+          if (participant.socketId === socket.id) {
+            delete room.participants[participant.sessionId]
+          }
+        })
         socket.leave(roomId)
         emitRoomData(roomId)
       }
@@ -140,21 +132,18 @@ io.on('connection', (socket) => {
     }
   })
 
-  socket.on(
-    'select-card',
-    ({ roomId, userId, card }: { roomId: string; userId: string; card: number }) => {
-      try {
-        const room = rooms.get(roomId)
-        if (room?.participants[userId]) {
-          room.participants[userId].selectedCard = card
-          io.to(roomId).emit('score-change', { userId, score: card })
-          emitRoomData(roomId)
-        }
-      } catch {
-        socket.emit('error', { message: 'Failed to select card' })
+  socket.on('select-card', ({ roomId, sessionId, card }) => {
+    try {
+      const room = rooms.get(roomId)
+      if (room?.participants[sessionId]) {
+        room.participants[sessionId].selectedCard = card
+        io.to(roomId).emit('score-change', { sessionId, score: card })
+        //emitRoomData(roomId)
       }
-    },
-  )
+    } catch {
+      socket.emit('error', { message: 'Failed to select card' })
+    }
+  })
 
   socket.on('disconnect', () => {
     // Handle disconnection if needed

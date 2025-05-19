@@ -2,27 +2,23 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Socket } from 'socket.io-client'
 
-export interface User {
-  userId: string
+export type Participant = {
+  sessionId: string
   userName: string
   userType?: string
   selectedCard?: number | null
   score?: number | null
 }
 
-export interface Room {
+export type Room = {
   roomId: string
-  participants: Record<string, User>
+  participants: Record<string, Participant>
 }
 
 export const useRoomStore = defineStore('room', () => {
   const room = ref<Room | null>(null)
   const socket = ref<Socket | null>(null)
   const connectionStatus = ref('disconnected')
-  const currentUser = ref<User>({
-    userId: localStorage.getItem('userId') || '',
-    userName: localStorage.getItem('userName') || '',
-  })
   const revealed = ref(false)
   const participants = computed(() => {
     if (!room.value) return {}
@@ -36,12 +32,6 @@ export const useRoomStore = defineStore('room', () => {
   function setRoomData(data: Room) {
     room.value = data
     console.log(room.value)
-  }
-
-  function setCurrentUser(user: User) {
-    currentUser.value = user
-    localStorage.setItem('userId', user.userId)
-    localStorage.setItem('userName', user.userName)
   }
 
   function setConnectionStatus(status: string) {
@@ -78,12 +68,10 @@ export const useRoomStore = defineStore('room', () => {
     room,
     socket,
     connectionStatus,
-    currentUser,
     revealed,
     participants,
     setSocket,
     setRoomData,
-    setCurrentUser,
     setConnectionStatus,
     setRevealed,
     selectCard,

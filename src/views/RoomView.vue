@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import GamePanel from '@/components/GamePanel.vue'
-import UserList from '@/components/UserList.vue'
+import SelectCards from '@/components/SelectCards.vue'
+import ParticipantList from '@/components/ParticipantList.vue'
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { io } from 'socket.io-client'
-import { v4 as uuidv4 } from 'uuid'
 
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
@@ -15,42 +14,32 @@ const route = useRoute()
 const router = useRouter()
 const store = useRoomStore()
 const userStore = useUserStore()
-const isHost = computed(() => store.currentUser.userType === 'host')
+const isHost = computed(
+  () => store.participants[userStore.currentUser.sessionId || '']?.userType === 'host',
+)
 const showNamePrompt = ref(false)
 const inputUserName = ref('')
 const roomId = ref<string | null>(null)
 const copySuccess = ref(false)
 
 onMounted(() => {
-  // Get roomId from route or store
-  const routeRoomId = route.params.id as string
-  const storeRoomId = userStore.roomId
-  const currentRoomId =
-    routeRoomId && routeRoomId !== 'new' && routeRoomId !== 'join' ? routeRoomId : storeRoomId
-
-  console.log('Current room ID:', currentRoomId)
-  console.log('User ID:', userStore.userId)
-  console.log('User Name:', userStore.userName)
-
-  if (!currentRoomId) {
-    console.log('No room ID available, redirecting to home')
-    router.push('/')
-    return
+  const roomId = route.params.id as string
+  const session = localStorage.getItem('session')
+  if (session) {
+    const sessionData = JSON.parse(session)
+    if (sessionData.roomId === roomId) {
+      userStore.setUserState({
+        ...userStore.currentUser,
+        ...sessionData,
+      })
+    }
   }
-
-  // Store roomId for later use
-  roomId.value = currentRoomId
-
-  // If no userId or userName, show name prompt
-  if (!userStore.userId || !userStore.userName) {
-    console.log('Missing user data, showing name prompt')
+  if (!userStore.currentUser.userName) {
     showNamePrompt.value = true
-    console.log('showNamePrompt set to:', showNamePrompt.value)
-    return
+  } else {
+    // since user's information is already set (from home page), we can initialize socket
+    initializeSocket()
   }
-
-  // We have all required data, initialize socket
-  initializeSocket(currentRoomId)
 })
 
 onUnmounted(() => {
@@ -83,41 +72,32 @@ const selectCard = (card: number | null) => {
   if (store.socket && store.room) {
     store.socket.emit('select-card', {
       roomId: store.room.roomId,
-      userId: userStore.userId,
+      sessionId: userStore.currentUser.sessionId,
       card: card,
     })
   }
 }
 
-const handleNameSubmit = (name: string) => {
-  if (!name || !roomId.value) return
-  console.log('Submitting name:', name)
-  const userId = uuidv4() // Generate new userId if not exists
+const handleNameSubmit = () => {
+  const roomId = route.params.id as string
+  if (!inputUserName.value) return
   userStore.setUserState({
-    userId,
-    userName: name,
+    ...userStore.currentUser,
+    userName: inputUserName.value,
+    roomId: roomId,
   })
   showNamePrompt.value = false
 
   // Now we have all required data, initialize socket
-  initializeSocket(roomId.value)
+  initializeSocket()
 }
 
-const initializeSocket = (roomId: string) => {
-  if (!userStore.userId || !userStore.userName) {
-    console.log('Cannot initialize socket: missing user data')
-    return
-  }
-
+const initializeSocket = () => {
   // First try to connect to the room
   const socket = io(import.meta.env.VITE_SOCKET_URL, {
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
-    auth: {
-      userId: userStore.userId,
-      userName: userStore.userName,
-    },
     path: '/socket',
     transports: ['websocket'],
   })
@@ -127,21 +107,8 @@ const initializeSocket = (roomId: string) => {
   socket.on('connect', () => {
     store.setConnectionStatus('connected')
     console.log('Connected to server')
-    if (roomId) {
-      console.log('Joining room:', roomId)
-      socket.emit('join-room', {
-        roomId,
-        userName: userStore.userName,
-        userId: userStore.userId,
-      })
-    }
-  })
-
-  socket.on('room-created', (roomId: string) => {
-    console.log('Room created:', roomId)
-    userStore.setUserState({ roomId })
-    // Update URL with the new roomId
-    router.replace(`/room/${roomId}`)
+    console.log('client emit join-room:', roomId)
+    socket.emit('join-room', userStore.currentUser)
   })
 
   socket.on('error', ({ message }: { message: string }) => {
@@ -155,12 +122,8 @@ const initializeSocket = (roomId: string) => {
   })
 
   socket.on('room-data', (room: Room) => {
-    console.log('Received room data:', room)
+    console.log('Received Room data:', room)
     store.setRoomData(room)
-    const user = room.participants[userStore.userId]
-    if (user) {
-      store.setCurrentUser(user)
-    }
   })
 
   socket.on('disconnect', () => {
@@ -180,14 +143,9 @@ const initializeSocket = (roomId: string) => {
           label="Enter your name"
           variant="outlined"
           density="comfortable"
-          @keyup.enter="handleNameSubmit(inputUserName)"
+          @keyup.enter="handleNameSubmit()"
         />
-        <v-btn
-          color="primary"
-          @click="handleNameSubmit(inputUserName)"
-          :disabled="!inputUserName"
-          block
-        >
+        <v-btn color="primary" @click="handleNameSubmit()" :disabled="!inputUserName" block>
           Join Room
         </v-btn>
       </div>
@@ -206,14 +164,14 @@ const initializeSocket = (roomId: string) => {
       </v-alert>
       <div v-else class="room-layout">
         <div class="left-panel">
-          <UserList :participants="store.participants" />
+          <ParticipantList :participants="store.participants" />
         </div>
 
         <div class="right-panel">
           <div class="user-info">
             <span>
               <v-icon start :icon="isHost ? 'mdi-account-star' : 'mdi-account'" class="mr-1" />
-              <strong>{{ userStore.userName }}</strong>
+              <strong>{{ userStore.currentUser.userName }}</strong>
             </span>
 
             <div class="room-actions">
@@ -233,7 +191,7 @@ const initializeSocket = (roomId: string) => {
             </div>
           </div>
 
-          <GamePanel :room="store.room" :handleSelectCard="selectCard" />
+          <SelectCards :room="store.room" :handleSelectCard="selectCard" />
         </div>
       </div>
     </template>

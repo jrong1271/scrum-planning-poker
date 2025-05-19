@@ -87,7 +87,18 @@ onUnmounted(() => {
         />
         <span class="user-name">{{ user.userName }}</span>
         <div class="score-container">
-          <span class="user-score" v-if="showScores">
+          <span
+            class="user-score"
+            v-if="showScores"
+            :class="{
+              'high-value': typeof userScores[sessionId] === 'number' && userScores[sessionId] > 20,
+              'medium-value':
+                typeof userScores[sessionId] === 'number' &&
+                userScores[sessionId] > 8 &&
+                userScores[sessionId] <= 20,
+              'low-value': typeof userScores[sessionId] === 'number' && userScores[sessionId] <= 8,
+            }"
+          >
             {{ userScores[sessionId] }}
           </span>
           <span
@@ -123,7 +134,7 @@ onUnmounted(() => {
 
 <style scoped>
 .participants-list {
-  min-width: 300px;
+  min-width: 312px;
   background: white;
   border-radius: 8px;
   padding: 1rem;
@@ -222,7 +233,19 @@ h3 {
 
 .user-score {
   font-weight: bold;
-  color: #42b883;
+  transition: all 0.3s ease;
+}
+
+.user-score.low-value {
+  color: #4caf50;
+}
+
+.user-score.medium-value {
+  color: #ff9800;
+}
+
+.user-score.high-value {
+  color: #f44336;
 }
 
 .status-indicator {

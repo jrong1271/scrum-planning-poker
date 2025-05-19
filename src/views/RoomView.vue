@@ -232,7 +232,6 @@ const initializeSocket = () => {
 }
 
 .left-panel {
-  flex: 0 0 250px;
   background: #f9f9f9;
   border-radius: 8px;
   padding: 1rem;

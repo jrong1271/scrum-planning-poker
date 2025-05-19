@@ -88,51 +88,88 @@ const selectCard = (card: number) => {
   font-size: 1.5rem;
   font-weight: bold;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform-style: preserve-3d;
+  perspective: 1000px;
 }
 
 .card.low-value {
   border-color: #4caf50;
   color: #4caf50;
+  background: linear-gradient(145deg, #ffffff, #f0f0f0);
 }
 
 .card.medium-value {
   border-color: #ff9800;
   color: #ff9800;
+  background: linear-gradient(145deg, #ffffff, #fff8f0);
 }
 
 .card.high-value {
   border-color: #f44336;
   color: #f44336;
+  background: linear-gradient(145deg, #ffffff, #fff0f0);
 }
 
 .card.low-value:hover {
-  transform: translateY(-5px) scale(1.05);
+  transform: translateY(-3px) scale(1.02);
   box-shadow: 0 6px 12px rgba(76, 175, 80, 0.2);
 }
 
 .card.medium-value:hover {
-  transform: translateY(-5px) scale(1.1);
-  box-shadow: 0 6px 12px rgba(255, 152, 0, 0.2);
+  transform: translateY(-5px) scale(1.05) rotate(2deg);
+  box-shadow: 0 8px 16px rgba(255, 152, 0, 0.25);
 }
 
 .card.high-value:hover {
-  transform: translateY(-5px) scale(1.15);
-  box-shadow: 0 6px 12px rgba(244, 67, 54, 0.2);
+  transform: translateY(-8px) scale(1.08) rotate(-3deg);
+  box-shadow: 0 12px 24px rgba(244, 67, 54, 0.3);
 }
 
 .card.selected {
   background: #42b883;
   color: white;
-  transform: translateY(8px);
+  transform: translateY(8px) scale(0.95);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-color: #2c3e50;
+  animation: selectPulse 0.5s ease-out;
+}
+
+@keyframes selectPulse {
+  0% {
+    transform: translateY(8px) scale(1.1);
+    box-shadow: 0 0 0 0 rgba(66, 184, 131, 0.4);
+  }
+  70% {
+    transform: translateY(8px) scale(0.95);
+    box-shadow: 0 0 0 10px rgba(66, 184, 131, 0);
+  }
+  100% {
+    transform: translateY(8px) scale(0.95);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 6px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.card.high-value::before {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
 }
 
 .card:active {
-  transform: translateY(8px);
+  transform: translateY(8px) scale(0.95);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.1s ease;
 }

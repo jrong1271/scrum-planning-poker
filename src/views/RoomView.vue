@@ -68,7 +68,6 @@ const copyRoomLink = async () => {
 }
 
 const selectCard = (card: number | null) => {
-  console.log('Selected card:', card)
   if (store.socket && store.room) {
     store.socket.emit('select-card', {
       roomId: store.room.roomId,
@@ -106,8 +105,6 @@ const initializeSocket = () => {
 
   socket.on('connect', () => {
     store.setConnectionStatus('connected')
-    console.log('Connected to server')
-    console.log('client emit join-room:', roomId)
     socket.emit('join-room', userStore.currentUser)
   })
 
@@ -122,12 +119,10 @@ const initializeSocket = () => {
   })
 
   socket.on('room-data', (room: Room) => {
-    console.log('Received Room data:', room)
     store.setRoomData(room)
   })
 
   socket.on('disconnect', () => {
-    console.log('Disconnected from server')
     store.setConnectionStatus('disconnected')
   })
 }

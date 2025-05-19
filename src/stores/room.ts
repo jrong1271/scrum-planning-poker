@@ -31,7 +31,6 @@ export const useRoomStore = defineStore('room', () => {
 
   function setRoomData(data: Room) {
     room.value = data
-    console.log(room.value)
   }
 
   function setConnectionStatus(status: string) {

@@ -22,7 +22,6 @@ watch(
         (participant) => participant.selectedCard !== null,
       )
       if (allCardsCleared && hadSelectedCards) {
-        console.log('Game restarted, resetting selected card')
         selectedCard.value = null
       }
     }

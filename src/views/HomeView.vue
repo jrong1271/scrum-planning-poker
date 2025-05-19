@@ -162,6 +162,28 @@ const enterRoom = async () => {
           </v-card-text>
         </v-card-item>
       </v-card>
+
+      <v-card class="feature-card" elevation="4">
+        <v-card-item class="feature-card-content">
+          <template v-slot:prepend>
+            <v-icon icon="mdi-github" color="primary" size="x-large" class="feature-icon" />
+          </template>
+          <v-card-title class="feature-title">Open Source</v-card-title>
+          <v-card-text class="feature-text">
+            This project is open source and available on GitHub
+          </v-card-text>
+          <v-btn
+            href="https://github.com/jrong1271/scrum-planning-poker"
+            target="_blank"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-github"
+            class="mt-2"
+          >
+            View Source Code
+          </v-btn>
+        </v-card-item>
+      </v-card>
     </div>
   </div>
 </template>
@@ -176,7 +198,7 @@ const enterRoom = async () => {
 
 .feature-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   margin: 4rem 0 2rem;
   padding: 0.5rem;

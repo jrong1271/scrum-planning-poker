@@ -2,6 +2,10 @@
 
 A real-time planning poker application built with Vue 3, TypeScript, and Socket.IO. This application helps agile teams conduct efficient planning poker sessions remotely.
 
+## 🌐 Live Demo
+
+Check out the live application at [https://smeeta.com/](https://smeeta.com/)
+
 ## 🚀 Features
 
 - Real-time card selection and score sharing

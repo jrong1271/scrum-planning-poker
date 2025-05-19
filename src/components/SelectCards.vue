@@ -51,6 +51,9 @@ const selectCard = (card: number) => {
         class="card"
         :class="{
           selected: selectedCard === card,
+          'high-value': card > 20,
+          'medium-value': card > 8 && card <= 20,
+          'low-value': card <= 8,
         }"
         @click="selectCard(card)"
       >
@@ -85,14 +88,39 @@ const selectCard = (card: number) => {
   font-size: 1.5rem;
   font-weight: bold;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.3s ease;
   position: relative;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+.card.low-value {
+  border-color: #4caf50;
+  color: #4caf50;
+}
+
+.card.medium-value {
+  border-color: #ff9800;
+  color: #ff9800;
+}
+
+.card.high-value {
+  border-color: #f44336;
+  color: #f44336;
+}
+
+.card.low-value:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 6px 12px rgba(76, 175, 80, 0.2);
+}
+
+.card.medium-value:hover {
+  transform: translateY(-5px) scale(1.1);
+  box-shadow: 0 6px 12px rgba(255, 152, 0, 0.2);
+}
+
+.card.high-value:hover {
+  transform: translateY(-5px) scale(1.15);
+  box-shadow: 0 6px 12px rgba(244, 67, 54, 0.2);
 }
 
 .card.selected {

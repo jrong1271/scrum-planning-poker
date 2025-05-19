@@ -64,8 +64,9 @@ io.on('connection', (socket) => {
       if (rooms.has(roomId)) {
         room = rooms.get(roomId)
         if (room) {
+          // detect re-connecting users
           if (room.participants[sessionId]) {
-            // detect re-connecting users
+            room.participants[sessionId].socketId = socket.id
             emitRoomData(roomId)
             return
           } else {

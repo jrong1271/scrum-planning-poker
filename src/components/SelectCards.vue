@@ -1,13 +1,39 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import type { Room } from '../stores/room'
+import { useUserStore } from '../stores/user'
 
 const props = defineProps<{
   room: Room | null
   handleSelectCard: (card: number | null) => void
 }>()
 
+const userStore = useUserStore()
 const selectedCard = ref<number | null>(null)
+
+// Initialize selected card from room data if it exists
+onMounted(() => {
+  if (props.room && userStore.currentUser.sessionId) {
+    const currentUserCard = props.room.participants[userStore.currentUser.sessionId]?.selectedCard
+    if (currentUserCard !== undefined) {
+      selectedCard.value = currentUserCard
+    }
+  }
+})
+
+// Watch for room changes to update selected card
+watch(
+  () => props.room?.participants,
+  (newParticipants) => {
+    if (newParticipants && userStore.currentUser.sessionId) {
+      const currentUserCard = newParticipants[userStore.currentUser.sessionId]?.selectedCard
+      if (currentUserCard !== undefined) {
+        selectedCard.value = currentUserCard
+      }
+    }
+  },
+  { deep: true, immediate: true },
+)
 
 // Watch for room changes to reset selected card when game is restarted
 watch(

@@ -65,7 +65,12 @@ onUnmounted(() => {
       <div v-if="messages.length === 0" class="no-messages">
         No messages yet. Start the conversation!
       </div>
-      <div v-for="(msg, index) in messages" :key="index" class="message">
+      <div
+        v-for="(msg, index) in messages"
+        :key="index"
+        class="message"
+        :class="{ 'message-own': msg.userName === userStore.currentUser.userName }"
+      >
         <div class="message-header">
           <span class="user-name">{{ msg.userName }}</span>
           <span class="timestamp">{{ new Date(msg.timestamp).toLocaleTimeString() }}</span>
@@ -141,6 +146,11 @@ onUnmounted(() => {
   border-radius: 6px;
   max-width: 85%;
   animation: messageAppear 0.3s ease-out;
+  align-self: flex-start;
+}
+
+.message-own {
+  background: #e3f2fd;
 }
 
 @keyframes messageAppear {

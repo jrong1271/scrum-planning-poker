@@ -302,7 +302,6 @@ const initializeSocket = () => {
 
 .room-layout {
   display: flex;
-  gap: 1rem;
   margin-bottom: 1rem;
 }
 
@@ -324,7 +323,6 @@ const initializeSocket = () => {
   background: #f9f9f9;
   border-radius: 8px;
   padding: 1rem;
-  margin-top: 2rem;
 }
 
 .user-info {

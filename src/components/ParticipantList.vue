@@ -130,12 +130,15 @@ onMounted(() => {
         participants[userStore.currentUser.sessionId]?.userType === 'host'
       "
     >
-      <button class="toggle-btn" @click="toggleScores">
-        {{ showScores ? 'Hide Scores' : 'Show Scores' }}
+      <button
+        class="toggle-btn"
+        @click="toggleScores"
+        :title="showScores ? 'Hide Scores' : 'Show Scores'"
+      >
+        <v-icon :icon="showScores ? 'mdi-eye-off' : 'mdi-eye'" />
       </button>
-      <button class="toggle-btn restart-btn" @click="roomStore.restartGame">
-        <v-icon start icon="mdi-refresh" />
-        Restart
+      <button class="toggle-btn restart-btn" @click="roomStore.restartGame" title="Restart Game">
+        <v-icon icon="mdi-refresh" />
       </button>
     </div>
   </div>
@@ -143,7 +146,7 @@ onMounted(() => {
 
 <style scoped>
 .participants-list {
-  min-width: 312px;
+  min-width: 282px;
   background: white;
   border-radius: 8px;
   padding: 1rem;
@@ -175,19 +178,18 @@ h3 {
 }
 
 .toggle-btn {
-  width: 120px;
-  padding: 0.5rem 1rem;
+  width: 40px;
+  height: 40px;
+  padding: 0.5rem;
   background: #42b883;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
 }
 
 .toggle-btn:hover {

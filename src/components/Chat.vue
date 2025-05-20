@@ -1,15 +1,31 @@
 <script setup lang="ts">
-import { ref, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onUnmounted, watch, nextTick } from 'vue'
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
+
+defineOptions({
+  name: 'RoomChat',
+})
+
+interface Message {
+  type?: 'system' | 'user'
+  userId?: string
+  userName: string
+  content: string
+  timestamp: string
+}
 
 const roomStore = useRoomStore()
 const userStore = useUserStore()
 
-const messages = ref<Array<{ userName: string; message: string; timestamp: number }>>([])
+const messages = ref<Message[]>([])
 const newMessage = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
 const isSending = ref(false)
+
+const formatTime = (timestamp: string) => {
+  return new Date(timestamp).toLocaleTimeString()
+}
 
 const sendMessage = () => {
   if (!newMessage.value.trim() || !roomStore.socket || !roomStore.room) return
@@ -26,32 +42,63 @@ const sendMessage = () => {
 
 const scrollToBottom = () => {
   if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    nextTick(() => {
+      chatContainer.value!.scrollTop = chatContainer.value!.scrollHeight
+    })
   }
 }
 
-// Watch for socket availability and set up chat message listener
+// Watch for socket availability and set up message listener
 watch(
   () => roomStore.socket,
   (socket) => {
     if (socket) {
-      socket.on('chat-message', (data: { userName: string; message: string }) => {
+      socket.on('chat-message', (message: Message) => {
         messages.value.push({
-          ...data,
-          timestamp: Date.now(),
+          ...message,
+          userId: message.userId || userStore.currentUser?.sessionId || undefined,
         })
-        nextTick(() => {
-          scrollToBottom()
+        scrollToBottom()
+      })
+
+      socket.on('user-left', ({ userName }: { userName: string }) => {
+        messages.value.push({
+          type: 'system',
+          userName: 'System',
+          content: `${userName} left the room`,
+          timestamp: new Date().toISOString(),
         })
+        scrollToBottom()
+      })
+
+      socket.on('user-joined', ({ userName }: { userName: string }) => {
+        messages.value.push({
+          type: 'system',
+          userName: 'System',
+          content: `${userName} joined the room`,
+          timestamp: new Date().toISOString(),
+        })
+        scrollToBottom()
       })
     }
   },
   { immediate: true },
 )
 
+// Watch messages array for changes to ensure scrolling
+watch(
+  messages,
+  () => {
+    scrollToBottom()
+  },
+  { deep: true },
+)
+
 onUnmounted(() => {
   if (roomStore.socket) {
     roomStore.socket.off('chat-message')
+    roomStore.socket.off('user-left')
+    roomStore.socket.off('user-joined')
   }
 })
 </script>
@@ -66,16 +113,19 @@ onUnmounted(() => {
         No messages yet. Start the conversation!
       </div>
       <div
-        v-for="(msg, index) in messages"
+        v-for="(message, index) in messages"
         :key="index"
         class="message"
-        :class="{ 'message-own': msg.userName === userStore.currentUser.userName }"
+        :class="{
+          'message-own': message.userId === userStore.currentUser?.sessionId,
+          'message-system': message.type === 'system',
+        }"
       >
         <div class="message-header">
-          <span class="user-name">{{ msg.userName }}</span>
-          <span class="timestamp">{{ new Date(msg.timestamp).toLocaleTimeString() }}</span>
+          <span class="message-sender">{{ message.userName }}</span>
+          <span class="message-time">{{ formatTime(message.timestamp) }}</span>
         </div>
-        <div class="message-content">{{ msg.message }}</div>
+        <div class="message-content">{{ message.content }}</div>
       </div>
     </div>
     <div class="chat-input">
@@ -153,6 +203,21 @@ onUnmounted(() => {
   background: #e3f2fd;
 }
 
+.message-system {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+  max-width: 100%;
+}
+
+.message-system .message-header {
+  display: none;
+}
+
 @keyframes messageAppear {
   from {
     opacity: 0;
@@ -172,12 +237,12 @@ onUnmounted(() => {
   font-size: 0.75rem;
 }
 
-.user-name {
+.message-sender {
   font-weight: 600;
   color: #2c3e50;
 }
 
-.timestamp {
+.message-time {
   color: #666;
   font-size: 0.7rem;
 }

@@ -78,6 +78,8 @@ io.on('connection', (socket) => {
               userType: Object.keys(room.participants).length > 0 ? 'participant' : 'host',
               selectedCard: null,
             } as Participant
+            // Emit user-joined event
+            io.to(roomId).emit('user-joined', { userName: safeName })
           }
         }
       } else {
@@ -108,6 +110,8 @@ io.on('connection', (socket) => {
       if (room) {
         Object.values(room.participants).map((participant) => {
           if (participant.socketId === socket.id) {
+            // Emit user-left event before removing the participant
+            io.to(roomId).emit('user-left', { userName: participant.userName })
             delete room.participants[participant.sessionId]
           }
         })
@@ -152,7 +156,15 @@ io.on('connection', (socket) => {
     try {
       const room = rooms.get(roomId)
       if (room) {
-        io.to(roomId).emit('chat-message', { userName, message })
+        // Find the participant's sessionId
+        const participant = Object.values(room.participants).find((p) => p.userName === userName)
+        io.to(roomId).emit('chat-message', {
+          type: 'user',
+          userId: participant?.sessionId,
+          userName,
+          content: message,
+          timestamp: new Date().toISOString(),
+        })
       }
     } catch {
       socket.emit('error', { message: 'Failed to send message' })

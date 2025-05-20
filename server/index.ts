@@ -148,6 +148,17 @@ io.on('connection', (socket) => {
     }
   })
 
+  socket.on('chat-message', ({ roomId, userName, message }) => {
+    try {
+      const room = rooms.get(roomId)
+      if (room) {
+        io.to(roomId).emit('chat-message', { userName, message })
+      }
+    } catch {
+      socket.emit('error', { message: 'Failed to send message' })
+    }
+  })
+
   socket.on('disconnect', () => {
     // Handle disconnection if needed
   })

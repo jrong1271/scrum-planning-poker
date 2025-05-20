@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import SelectCards from '@/components/SelectCards.vue'
 import ParticipantList from '@/components/ParticipantList.vue'
+import RoomChat from '@/components/Chat.vue'
 
 import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -263,6 +264,10 @@ const initializeSocket = () => {
           <SelectCards :room="store.room" :handleSelectCard="selectCard" />
         </div>
       </div>
+
+      <div class="chat-section">
+        <RoomChat />
+      </div>
     </template>
   </div>
 </template>
@@ -297,17 +302,29 @@ const initializeSocket = () => {
 
 .room-layout {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .left-panel {
+  flex: 1;
   background: #f9f9f9;
   border-radius: 8px;
   padding: 1rem;
 }
 
 .right-panel {
-  flex: 1;
+  flex: 2;
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.chat-section {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 2rem;
 }
 
 .user-info {

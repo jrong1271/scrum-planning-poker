@@ -4,7 +4,7 @@ A real-time planning poker application built with Vue 3, TypeScript, and Socket.
 
 ## 🌐 Live Demo
 
-Check out the live application at [https://smeeta.com/](https://smeeta.com/)
+Check out the live application at https://joerong.com/scrum-planner/
 
 ## 🚀 Features
 
